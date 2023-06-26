@@ -1,0 +1,26 @@
+before:
+  hooks:
+    - go generate ./...
+project_name: friendly-stripe-sync
+builds:
+  - binary: friendly-stripe-sync
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - 386
+      - arm64
+    ldflags:
+      - -s -w -X github.com/friendlycaptcha/friendly-stripe-sync/internal/buildinfo.version={{.Version}} -X github.com/friendlycaptcha/friendly-stripe-sync/internal/buildinfo.commit={{.Commit}} -X github.com/friendlycaptcha/friendly-stripe-sync/internal/buildinfo.date={{.CommitDate}} -X github.com/friendlycaptcha/friendly-stripe-sync/internal/buildinfo.target={{.Env.GOOS}}
+archives:
+  - id: friendly-stripe-sync-archive
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Tag }}_
+      {{- .Os }}_
+      {{- .Arch}}
+    format_overrides:
+      - goos: windows
+        format: zip

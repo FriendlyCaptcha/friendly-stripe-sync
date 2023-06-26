@@ -1,0 +1,1 @@
+drop table if exists "stripe"."sync_state";
