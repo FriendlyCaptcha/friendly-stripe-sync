@@ -6,7 +6,7 @@ on:
 
 jobs:
   release:
-    name: Release Server
+    name: Release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
