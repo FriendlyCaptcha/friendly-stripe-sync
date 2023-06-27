@@ -32,6 +32,11 @@ func SyncEvents(db *postgres.PostgresStore) error {
 			stripe.String("subscription.created"),
 			stripe.String("subscription.updated"),
 			stripe.String("subscription.deleted"),
+			stripe.String("coupon.created"),
+			stripe.String("coupon.updated"),
+			stripe.String("coupon.deleted"),
+			stripe.String("customer.discount.updated"),
+			stripe.String("customer.discount.deleted"),
 		},
 	}
 

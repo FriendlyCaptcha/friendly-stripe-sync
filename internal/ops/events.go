@@ -56,6 +56,24 @@ func HandleEvent(c context.Context, db *postgres.PostgresStore, e *stripe.Event)
 			return HandlePriceDeleted(c, db, price)
 		}
 		break
+	case "coupon.created", "coupon.updated":
+		coupon, err := unmarshalEventData[stripe.Coupon](e)
+		if err == nil {
+			return HandleCouponUpdated(c, db, coupon)
+		}
+		break
+	case "coupon.deleted":
+		coupon, err := unmarshalEventData[stripe.Coupon](e)
+		if err == nil {
+			return HandleCouponDeleted(c, db, coupon)
+		}
+		break
+	case "customer.discount.updated", "customer.discount.deleted":
+		discount, err := unmarshalEventData[stripe.Discount](e)
+		if err == nil {
+			return HandleSubscriptionDiscountUpdated(c, db, discount)
+		}
+		break
 	}
 	return nil
 }

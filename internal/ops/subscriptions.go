@@ -15,6 +15,28 @@ func HandleSubscriptionUpdated(c context.Context, db *postgres.PostgresStore, su
 		return err
 	}
 
+	discountID := sql.NullString{}
+	discountStart := sql.NullInt64{}
+	discountEnd := sql.NullInt64{}
+	discountCoupon := sql.NullString{}
+	discountDeleted := sql.NullBool{}
+	discountPromotionCode := sql.NullString{}
+	if subscription.Discount != nil {
+		discountID = utils.StringToNullString(subscription.Discount.ID)
+		discountStart = utils.Int64ToNullInt64(subscription.Discount.Start)
+		discountEnd = utils.Int64ToNullInt64(subscription.Discount.End)
+		discountCoupon = utils.StringToNullString(subscription.Discount.Coupon.ID)
+		discountDeleted = sql.NullBool{Bool: subscription.Discount.Deleted, Valid: true}
+		if subscription.Discount.PromotionCode != nil {
+			discountPromotionCode = utils.StringToNullString(subscription.Discount.PromotionCode.ID)
+		}
+
+		err := EnsureCouponLoaded(c, db, subscription.Discount.Coupon.ID)
+		if err != nil {
+			return err
+		}
+	}
+
 	err = db.Q.UpsertSubscription(c, postgres.UpsertSubscriptionParams{
 		ID:                            subscription.ID,
 		Object:                        subscription.Object,
@@ -27,22 +49,27 @@ func HandleSubscriptionUpdated(c context.Context, db *postgres.PostgresStore, su
 		ApplicationFeePercent:         sql.NullFloat64{Float64: subscription.ApplicationFeePercent, Valid: subscription.ApplicationFeePercent != 0},
 		BillingCycleAnchor:            subscription.BillingCycleAnchor,
 		BillingThresholds:             utils.MarshalToNullRawMessage(subscription.BillingThresholds),
-		CancelAt:                      sql.NullInt64{Int64: subscription.CancelAt, Valid: subscription.CancelAt != 0},
-		CanceledAt:                    sql.NullInt64{Int64: subscription.CanceledAt, Valid: subscription.CanceledAt != 0},
+		CancelAt:                      utils.Int64ToNullInt64(subscription.CancelAt),
+		CanceledAt:                    utils.Int64ToNullInt64(subscription.CanceledAt),
 		CollectionMethod:              string(subscription.CollectionMethod),
 		Created:                       subscription.Created,
-		DaysUntilDue:                  sql.NullInt64{Int64: subscription.DaysUntilDue, Valid: subscription.DaysUntilDue != 0},
+		DaysUntilDue:                  utils.Int64ToNullInt64(subscription.DaysUntilDue),
 		DefaultTaxRates:               utils.MarshalToNullRawMessage(subscription.DefaultTaxRates),
-		Discount:                      utils.MarshalToNullRawMessage(subscription.Discount),
-		EndedAt:                       sql.NullInt64{Int64: subscription.EndedAt, Valid: subscription.EndedAt != 0},
+		EndedAt:                       utils.Int64ToNullInt64(subscription.EndedAt),
 		Livemode:                      subscription.Livemode,
-		NextPendingInvoiceItemInvoice: sql.NullInt64{Int64: subscription.NextPendingInvoiceItemInvoice, Valid: subscription.NextPendingInvoiceItemInvoice != 0},
+		NextPendingInvoiceItemInvoice: utils.Int64ToNullInt64(subscription.NextPendingInvoiceItemInvoice),
 		PauseCollection:               utils.MarshalToNullRawMessage(subscription.PauseCollection),
 		PendingInvoiceItemInterval:    utils.MarshalToNullRawMessage(subscription.PendingInvoiceItemInterval),
 		StartDate:                     subscription.StartDate,
 		TransferData:                  utils.MarshalToNullRawMessage(subscription.TransferData),
-		TrialEnd:                      sql.NullInt64{Int64: subscription.TrialEnd, Valid: subscription.TrialEnd != 0},
-		TrialStart:                    sql.NullInt64{Int64: subscription.TrialStart, Valid: subscription.TrialStart != 0},
+		TrialEnd:                      utils.Int64ToNullInt64(subscription.TrialEnd),
+		TrialStart:                    utils.Int64ToNullInt64(subscription.TrialStart),
+		DiscountID:                    discountID,
+		DiscountStart:                 discountStart,
+		DiscountEnd:                   discountEnd,
+		DiscountDeleted:               discountDeleted,
+		DiscountPromotionCode:         discountPromotionCode,
+		DiscountCoupon:                discountCoupon,
 		Customer:                      subscription.Customer.ID,
 	})
 	if err != nil {
@@ -72,4 +99,20 @@ func HandleSubscriptionUpdated(c context.Context, db *postgres.PostgresStore, su
 	}
 
 	return nil
+}
+
+func HandleSubscriptionDiscountUpdated(c context.Context, db *postgres.PostgresStore, discount *stripe.Discount) error {
+	err := EnsureCouponLoaded(c, db, discount.Coupon.ID)
+	if err != nil {
+		return err
+	}
+
+	return db.Q.UpdateSubscriptionDiscount(c, postgres.UpdateSubscriptionDiscountParams{
+		DiscountID:            utils.StringToNullString(discount.ID),
+		DiscountStart:         utils.Int64ToNullInt64(discount.Start),
+		DiscountEnd:           utils.Int64ToNullInt64(discount.End),
+		DiscountDeleted:       sql.NullBool{Bool: discount.Deleted, Valid: true},
+		DiscountPromotionCode: utils.StringToNullString(discount.PromotionCode.ID),
+		DiscountCoupon:        utils.StringToNullString(discount.Coupon.ID),
+	})
 }

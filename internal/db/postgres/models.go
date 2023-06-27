@@ -9,6 +9,26 @@ import (
 	"github.com/tabbed/pqtype"
 )
 
+type StripeCoupon struct {
+	ID               string
+	Object           string
+	AmountOff        sql.NullInt64
+	Created          int64
+	Currency         sql.NullString
+	Duration         string
+	DurationInMonths sql.NullInt64
+	Livemode         bool
+	MaxRedemptions   sql.NullInt64
+	Metadata         pqtype.NullRawMessage
+	Name             string
+	PercentOff       sql.NullFloat64
+	RedeemBy         sql.NullInt64
+	TimesRedeemed    sql.NullInt64
+	Valid            bool
+	AppliesTo        pqtype.NullRawMessage
+	UpdatedAt        time.Time
+}
+
 type StripeCustomer struct {
 	ID                  string
 	Object              string
@@ -96,7 +116,6 @@ type StripeSubscription struct {
 	DaysUntilDue                  sql.NullInt64
 	DefaultSource                 sql.NullString
 	DefaultTaxRates               pqtype.NullRawMessage
-	Discount                      pqtype.NullRawMessage
 	EndedAt                       sql.NullInt64
 	Livemode                      bool
 	NextPendingInvoiceItemInvoice sql.NullInt64
@@ -106,6 +125,12 @@ type StripeSubscription struct {
 	TransferData                  pqtype.NullRawMessage
 	TrialEnd                      sql.NullInt64
 	TrialStart                    sql.NullInt64
+	DiscountID                    sql.NullString
+	DiscountStart                 sql.NullInt64
+	DiscountEnd                   sql.NullInt64
+	DiscountCoupon                sql.NullString
+	DiscountDeleted               sql.NullBool
+	DiscountPromotionCode         sql.NullString
 	Schedule                      sql.NullString
 	Customer                      string
 	UpdatedAt                     time.Time
