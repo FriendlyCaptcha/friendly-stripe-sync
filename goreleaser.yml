@@ -14,6 +14,8 @@ builds:
       - arm64
     ldflags:
       - -s -w -X github.com/friendlycaptcha/friendly-stripe-sync/internal/buildinfo.version={{.Version}} -X github.com/friendlycaptcha/friendly-stripe-sync/internal/buildinfo.commit={{.Commit}} -X github.com/friendlycaptcha/friendly-stripe-sync/internal/buildinfo.date={{.CommitDate}} -X github.com/friendlycaptcha/friendly-stripe-sync/internal/buildinfo.target={{.Env.GOOS}}
+    env:
+      - CGO_ENABLED=0
 archives:
   - id: friendly-stripe-sync-archive
     name_template: >-
