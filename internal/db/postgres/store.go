@@ -16,8 +16,8 @@ import (
 func BuildConnectionDSN(dbname string) string {
 	password := viper.GetString("postgres.password")
 
-	dsn := fmt.Sprintf("host=%s port=%d dbname=%s user=%s sslmode=disable",
-		viper.GetString("postgres.host"), viper.GetInt("postgres.port"), dbname, viper.GetString("postgres.user"))
+	dsn := fmt.Sprintf("host=%s port=%d dbname=%s user=%s sslmode=%s",
+		viper.GetString("postgres.host"), viper.GetInt("postgres.port"), dbname, viper.GetString("postgres.user"), viper.GetString("postgres.sslmode"))
 
 	if password != "" {
 		dsn += " password=" + password

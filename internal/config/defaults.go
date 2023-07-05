@@ -11,4 +11,5 @@ func setupDefaults() {
 	v.SetDefault("postgres.dbname", "friendlystripe")
 	v.SetDefault("postgres.user", "postgres")
 	v.SetDefault("postgres.password", "")
+	v.SetDefault("postgres.sslmode", "disable")
 }
