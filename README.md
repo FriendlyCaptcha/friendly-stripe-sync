@@ -104,6 +104,7 @@ postgres:
   user: "postgres"
   password: ""
   dbname: "friendlystripe"
+  sslmode: "disable"
 
 # Exclude certain fields from being stored in the database. By default no fields are excluded.
 stripe_sync:
