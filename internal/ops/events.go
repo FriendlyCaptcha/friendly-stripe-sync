@@ -38,7 +38,7 @@ func HandleEvent(c context.Context, db *postgres.PostgresStore, e *stripe.Event)
 			return HandleProductDeleted(c, db, product)
 		}
 		break
-	case "subscription.created", "subscription.updated", "subscription.deleted":
+	case "customer.subscription.created", "customer.subscription.updated", "customer.subscription.deleted", "customer.subscription.paused":
 		subscription, err := unmarshalEventData[stripe.Subscription](e)
 		if err == nil {
 			return HandleSubscriptionUpdated(c, db, subscription)
