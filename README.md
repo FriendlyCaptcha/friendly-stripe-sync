@@ -19,9 +19,10 @@ The data is updated using the following events:
 - [x] product.created
 - [x] product.updated
 - [x] product.deleted
-- [x] subscription.created
-- [x] subscription.updated
-- [x] subscription.deleted
+- [x] customer.subscription.created
+- [x] customer.subscription.updated
+- [x] customer.subscription.paused
+- [x] customer.subscription.deleted
 - [x] price.created
 - [x] price.updated
 - [x] price.deleted
