@@ -31,7 +31,7 @@ func Execute() {
 func init() {
 	rootCmd.PersistentFlags().StringVar(&config.CfgFile, "config", "", "config file (default is $HOME/.friendly-stripe-sync.yaml)")
 
-	rootCmd.Version = buildinfo.Version() + " " + buildinfo.Target() + " (" + buildinfo.CommitDate() + ") " + buildinfo.Commit()
+	rootCmd.Version = buildinfo.FullVersion()
 
 	rootCmd.PersistentFlags().BoolP("development", "d", false, "Development mode (prints prettier log messages)")
 	rootCmd.PersistentFlags().BoolP("debug", "D", false, "Debug mode (prints debug messages and call traces)")
