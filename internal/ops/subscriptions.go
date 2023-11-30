@@ -107,12 +107,28 @@ func HandleSubscriptionDiscountUpdated(c context.Context, db *postgres.PostgresS
 		return err
 	}
 
+	var promotionCodeID sql.NullString
+	if discount.PromotionCode != nil {
+		promotionCodeID = sql.NullString{
+			Valid:  true,
+			String: discount.PromotionCode.ID,
+		}
+	}
+
+	var couponID sql.NullString
+	if discount.Coupon != nil {
+		couponID = sql.NullString{
+			Valid:  true,
+			String: discount.Coupon.ID,
+		}
+	}
+
 	return db.Q.UpdateSubscriptionDiscount(c, postgres.UpdateSubscriptionDiscountParams{
 		DiscountID:            utils.StringToNullString(discount.ID),
 		DiscountStart:         utils.Int64ToNullInt64(discount.Start),
 		DiscountEnd:           utils.Int64ToNullInt64(discount.End),
 		DiscountDeleted:       sql.NullBool{Bool: discount.Deleted, Valid: true},
-		DiscountPromotionCode: utils.StringToNullString(discount.PromotionCode.ID),
-		DiscountCoupon:        utils.StringToNullString(discount.Coupon.ID),
+		DiscountPromotionCode: promotionCodeID,
+		DiscountCoupon:        couponID,
 	})
 }
