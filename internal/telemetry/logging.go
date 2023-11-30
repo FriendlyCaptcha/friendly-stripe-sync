@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 
-	"github.com/gofiber/fiber/v2"
 	"github.com/spf13/viper"
 
 	"github.com/rs/zerolog"
@@ -63,9 +62,4 @@ func syncWriter() io.Writer {
 	return diode.NewWriter(os.Stderr, 1000, 0, func(missed int) {
 		fmt.Printf("Logger Dropped %d messages", missed)
 	})
-}
-
-// Returns the logger for the given fiber user context
-func L(c *fiber.Ctx) *zerolog.Logger {
-	return zerolog.Ctx(c.UserContext())
 }
