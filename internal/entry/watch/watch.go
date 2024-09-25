@@ -21,11 +21,14 @@ func Start(ctx context.Context, cfg cfgmodel.FriendlyStripeSync) error {
 
 	intervalSeconds := cfg.StripeSync.IntervalSeconds
 
-	db := postgres.NewPostgresStore(cfg.Postgres)
+	db, err := postgres.NewPostgresStore(cfg.Postgres)
+	if err != nil {
+		return fmt.Errorf("failed to create postgres store: %w", err)
+	}
 
 	stripesync := ops.New(db, cfg.StripeSync, cfg.Stripe.APIKey)
 
-	_, err := db.Q.GetCurrentSyncState(ctx)
+	_, err = db.Q.GetCurrentSyncState(ctx)
 	if err == sql.ErrNoRows {
 		log.Info().Msg("No sync state found, doing an initial load")
 		err := stripesync.InitialLoad(ctx, cfg.Purge)

@@ -3,7 +3,6 @@ package migrate
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/config/cfgmodel"
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/db/postgres"
@@ -32,11 +31,13 @@ func Migrate(ctx context.Context, cfg cfgmodel.FriendlyStripeSync, storeName str
 
 	switch storeName {
 	case "postgres":
-		pg := postgres.NewPostgresStore(cfg.Postgres)
+		pg, err := postgres.NewPostgresStore(cfg.Postgres)
+		if err != nil {
+			return fmt.Errorf("failed to create postgres store: %w", err)
+		}
 		pgMigrater, err := pg.GetMigrater(cfg.Postgres)
 		if err != nil {
-			l.Error().Err(err).Msg("Failed to get migrater")
-			os.Exit(1)
+			return fmt.Errorf("failed to get migrater: %w", err)
 		}
 		migrater = pgMigrater
 		defer migrater.Close()

@@ -23,7 +23,6 @@ func BuildConnectionDSN(cfg cfgmodel.Postgres) string {
 		dsn += " password=" + password
 	}
 	return dsn
-
 }
 
 type PostgresStore struct {
@@ -31,10 +30,10 @@ type PostgresStore struct {
 	Q  *Queries
 }
 
-func NewPostgresStore(cfg cfgmodel.Postgres) *PostgresStore {
+func NewPostgresStore(cfg cfgmodel.Postgres) (*PostgresStore, error) {
 	db, err := sqlx.Open("postgres", BuildConnectionDSN(cfg))
 	if err != nil {
-		log.Fatalf("Failed to connect to postgres store: %v", err)
+		return nil, fmt.Errorf("Failed to connect to postgres store: %w", err)
 	}
 
 	db.SetMaxIdleConns(20)
@@ -44,7 +43,7 @@ func NewPostgresStore(cfg cfgmodel.Postgres) *PostgresStore {
 	return &PostgresStore{
 		db: db,
 		Q:  New(db),
-	}
+	}, nil
 }
 
 func NewPostgresTestStore(cfg cfgmodel.Postgres) (*PostgresStore, func()) {
