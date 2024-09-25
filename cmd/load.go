@@ -5,15 +5,15 @@ import (
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/entry/load"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/stripe/stripe-go/v74"
 )
 
 var loadCmd = &cobra.Command{
 	Use:   "load",
 	Short: "Loads all data from Stripe and puts it in the DB",
 	Long:  "Loads all data from Stripe and puts it in the DB",
-	Run: func(cmd *cobra.Command, args []string) {
-		load.Start()
+	RunE: func(cmd *cobra.Command, _ []string) error {
+		cfg := config.GetStruct()
+		return load.Start(cmd.Context(), cfg)
 	},
 	PreRun: bindLoad,
 }
@@ -26,7 +26,5 @@ func init() {
 
 func bindLoad(cmd *cobra.Command, args []string) {
 	config.InitConfig()
-	stripe.Key = viper.GetString("stripe.api_key")
-
 	viper.BindPFlag("purge", cmd.Flags().Lookup("purge"))
 }

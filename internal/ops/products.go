@@ -2,15 +2,15 @@ package ops
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/db/postgres"
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/utils"
 	"github.com/stripe/stripe-go/v74"
-	"github.com/stripe/stripe-go/v74/product"
 )
 
-func HandleProductUpdated(c context.Context, db *postgres.PostgresStore, product *stripe.Product) error {
-	return db.Q.UpsertProduct(c, postgres.UpsertProductParams{
+func (o *Ops) HandleProductUpdated(c context.Context, product *stripe.Product) error {
+	return o.db.Q.UpsertProduct(c, postgres.UpsertProductParams{
 		ID:                  product.ID,
 		Object:              product.Object,
 		Active:              product.Active,
@@ -29,21 +29,24 @@ func HandleProductUpdated(c context.Context, db *postgres.PostgresStore, product
 	})
 }
 
-func HandleProductDeleted(c context.Context, db *postgres.PostgresStore, product *stripe.Product) error {
-	return db.Q.DeleteProduct(c, product.ID)
+func (o *Ops) HandleProductDeleted(c context.Context, product *stripe.Product) error {
+	return o.db.Q.DeleteProduct(c, product.ID)
 }
 
-func EnsureProductLoaded(c context.Context, db *postgres.PostgresStore, productId string) error {
-	exists, err := db.Q.ProductExists(c, productId)
+func (o *Ops) EnsureProductLoaded(c context.Context, productId string) error {
+	exists, err := o.db.Q.ProductExists(c, productId)
 	if err != nil {
 		return err
 	}
 	if !exists {
-		product, err := product.Get(productId, nil)
+		product, err := o.stripe.Products.Get(productId, nil)
 		if err != nil {
 			return err
 		}
-		HandleProductUpdated(c, db, product)
+		err = o.HandleProductUpdated(c, product)
+		if err != nil {
+			return fmt.Errorf("failed to upsert product: %w", err)
+		}
 	}
 
 	return nil

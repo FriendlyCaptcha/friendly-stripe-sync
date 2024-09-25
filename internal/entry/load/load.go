@@ -1,20 +1,26 @@
 package load
 
 import (
-	"github.com/rs/zerolog/log"
+	"context"
+	"fmt"
 
+	"github.com/friendlycaptcha/friendly-stripe-sync/internal/config/cfgmodel"
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/db/postgres"
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/ops"
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/telemetry"
 )
 
-func Start() {
-	telemetry.SetupLogger()
+func Start(ctx context.Context, cfg cfgmodel.FriendlyStripeSync) error {
+	telemetry.SetupLogger(cfg.Development, cfg.Debug, cfg.Logging)
 
-	db := postgres.NewPostgresStore()
+	db := postgres.NewPostgresStore(cfg.Postgres)
 
-	err := ops.InititalLoad(db)
+	stripesync := ops.New(db, cfg.StripeSync, cfg.Stripe.APIKey)
+
+	err := stripesync.InitialLoad(ctx, cfg.Purge)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to load initial data")
+		return fmt.Errorf("failed to load initial data: %w", err)
 	}
+
+	return nil
 }

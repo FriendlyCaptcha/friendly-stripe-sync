@@ -4,48 +4,40 @@ import (
 	"context"
 	"time"
 
-	"github.com/friendlycaptcha/friendly-stripe-sync/internal/db/postgres"
 	"github.com/rs/zerolog/log"
-	"github.com/spf13/viper"
 	"github.com/stripe/stripe-go/v74"
-	"github.com/stripe/stripe-go/v74/customer"
-	"github.com/stripe/stripe-go/v74/price"
-	"github.com/stripe/stripe-go/v74/product"
-	"github.com/stripe/stripe-go/v74/subscription"
 	"golang.org/x/sync/errgroup"
 )
 
-func InititalLoad(db *postgres.PostgresStore) error {
-	ctx := context.Background()
-
-	if viper.GetBool("purge") {
+func (o *Ops) InitialLoad(ctx context.Context, purge bool) error {
+	if purge {
 		log.Info().Msgf("Deleting all existing data from database")
 
-		err := db.Q.DeleteCurrentSyncState(ctx)
+		err := o.db.Q.DeleteCurrentSyncState(ctx)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to delete current sync state")
 			return err
 		}
 
-		err = db.Q.DeleteAllCustomers(ctx)
+		err = o.db.Q.DeleteAllCustomers(ctx)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to delete all customers")
 			return err
 		}
 
-		err = db.Q.DeleteAllProducts(ctx)
+		err = o.db.Q.DeleteAllProducts(ctx)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to delete all products")
 			return err
 		}
 
-		err = db.Q.DeleteAllPrices(ctx)
+		err = o.db.Q.DeleteAllPrices(ctx)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to delete all prices")
 			return err
 		}
 
-		err = db.Q.DeleteAllSubscriptions(ctx)
+		err = o.db.Q.DeleteAllSubscriptions(ctx)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to delete all subscriptions")
 			return err
@@ -61,16 +53,16 @@ func InititalLoad(db *postgres.PostgresStore) error {
 	g, ctx := errgroup.WithContext(ctx)
 
 	g.Go(func() error {
-		return loadCustomers(ctx, db)
+		return o.loadCustomers(ctx)
 	})
 	g.Go(func() error {
-		return loadProducts(ctx, db)
+		return o.loadProducts(ctx)
 	})
 	g.Go(func() error {
-		return loadPrices(ctx, db)
+		return o.loadPrices(ctx)
 	})
 	g.Go(func() error {
-		return loadSubscriptions(ctx, db)
+		return o.loadSubscriptions(ctx)
 	})
 
 	if err := g.Wait(); err != nil {
@@ -78,7 +70,7 @@ func InititalLoad(db *postgres.PostgresStore) error {
 	}
 
 	log.Info().Msgf("Finished loading data from Stripe")
-	err := db.Q.SetSyncState(context.Background(), startedAt)
+	err := o.db.Q.SetSyncState(context.Background(), startedAt)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to set sync state")
 		return err
@@ -87,12 +79,12 @@ func InititalLoad(db *postgres.PostgresStore) error {
 	return nil
 }
 
-func loadCustomers(c context.Context, db *postgres.PostgresStore) error {
-	customers := customer.List(&stripe.CustomerListParams{ListParams: stripe.ListParams{Limit: stripe.Int64(100)}})
+func (o *Ops) loadCustomers(c context.Context) error {
+	customers := o.stripe.Customers.List(&stripe.CustomerListParams{ListParams: stripe.ListParams{Limit: stripe.Int64(100)}})
 	count := 0
 	for customers.Next() {
 		cus := customers.Customer()
-		err := HandleCustomerUpdated(c, db, cus)
+		err := o.HandleCustomerUpdated(c, cus)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to handle loaded customer")
 			return err
@@ -103,12 +95,12 @@ func loadCustomers(c context.Context, db *postgres.PostgresStore) error {
 	return nil
 }
 
-func loadProducts(c context.Context, db *postgres.PostgresStore) error {
-	products := product.List(&stripe.ProductListParams{ListParams: stripe.ListParams{Limit: stripe.Int64(100)}})
+func (o *Ops) loadProducts(c context.Context) error {
+	products := o.stripe.Products.List(&stripe.ProductListParams{ListParams: stripe.ListParams{Limit: stripe.Int64(100)}})
 	count := 0
 	for products.Next() {
 		p := products.Product()
-		err := HandleProductUpdated(c, db, p)
+		err := o.HandleProductUpdated(c, p)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to handle loaded product")
 			return err
@@ -119,12 +111,12 @@ func loadProducts(c context.Context, db *postgres.PostgresStore) error {
 	return nil
 }
 
-func loadPrices(c context.Context, db *postgres.PostgresStore) error {
-	prices := price.List(&stripe.PriceListParams{ListParams: stripe.ListParams{Limit: stripe.Int64(100)}})
+func (o *Ops) loadPrices(c context.Context) error {
+	prices := o.stripe.Prices.List(&stripe.PriceListParams{ListParams: stripe.ListParams{Limit: stripe.Int64(100)}})
 	count := 0
 	for prices.Next() {
 		p := prices.Price()
-		err := HandlePriceUpdated(c, db, p)
+		err := o.HandlePriceUpdated(c, p)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to handle loaded price")
 			return err
@@ -135,12 +127,12 @@ func loadPrices(c context.Context, db *postgres.PostgresStore) error {
 	return nil
 }
 
-func loadSubscriptions(c context.Context, db *postgres.PostgresStore) error {
-	subscriptions := subscription.List(&stripe.SubscriptionListParams{ListParams: stripe.ListParams{Limit: stripe.Int64(100)}})
+func (o *Ops) loadSubscriptions(c context.Context) error {
+	subscriptions := o.stripe.Subscriptions.List(&stripe.SubscriptionListParams{ListParams: stripe.ListParams{Limit: stripe.Int64(100)}})
 	count := 0
 	for subscriptions.Next() {
 		s := subscriptions.Subscription()
-		err := HandleSubscriptionUpdated(c, db, s)
+		err := o.HandleSubscriptionUpdated(c, s)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to handle loaded subscription")
 			return err

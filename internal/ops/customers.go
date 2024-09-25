@@ -3,20 +3,19 @@ package ops
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/db/postgres"
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/utils"
-	"github.com/spf13/viper"
 	"github.com/stripe/stripe-go/v74"
-	"github.com/stripe/stripe-go/v74/customer"
 	"github.com/tabbed/pqtype"
 )
 
-func HandleCustomerUpdated(c context.Context, db *postgres.PostgresStore, customer *stripe.Customer) error {
+func (o *Ops) HandleCustomerUpdated(c context.Context, customer *stripe.Customer) error {
 	address := utils.MarshalToNullRawMessage(customer.Address)
 	phone := utils.StringToNullString(customer.Phone)
 
-	for _, field := range viper.GetStringSlice("stripe_sync.excluded_fields") {
+	for _, field := range o.cfg.ExcludedFields {
 		switch field {
 		case "customer.address":
 			address = pqtype.NullRawMessage{}
@@ -25,7 +24,7 @@ func HandleCustomerUpdated(c context.Context, db *postgres.PostgresStore, custom
 		}
 	}
 
-	return db.Q.UpsertCustomer(c, postgres.UpsertCustomerParams{
+	return o.db.Q.UpsertCustomer(c, postgres.UpsertCustomerParams{
 		ID:                  customer.ID,
 		Object:              customer.Object,
 		Address:             address,
@@ -50,17 +49,20 @@ func HandleCustomerUpdated(c context.Context, db *postgres.PostgresStore, custom
 	})
 }
 
-func EnsureCustomerLoaded(c context.Context, db *postgres.PostgresStore, customerID string) error {
-	exists, err := db.Q.CustomerExists(c, customerID)
+func (o *Ops) EnsureCustomerLoaded(ctx context.Context, customerID string) error {
+	exists, err := o.db.Q.CustomerExists(ctx, customerID)
 	if err != nil {
 		return err
 	}
 	if !exists {
-		customer, err := customer.Get(customerID, nil)
+		customer, err := o.stripe.Customers.Get(customerID, nil)
 		if err != nil {
 			return err
 		}
-		HandleCustomerUpdated(c, db, customer)
+		err = o.HandleCustomerUpdated(ctx, customer)
+		if err != nil {
+			return fmt.Errorf("failed to upsert customer: %w", err)
+		}
 	}
 
 	return nil

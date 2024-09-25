@@ -7,22 +7,21 @@ import (
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/db/postgres"
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/utils"
 	"github.com/stripe/stripe-go/v74"
-	"github.com/stripe/stripe-go/v74/coupon"
 )
 
-func HandleCouponUpdated(c context.Context, db *postgres.PostgresStore, partialCoupon *stripe.Coupon) error {
+func (o *Ops) HandleCouponUpdated(c context.Context, partialCoupon *stripe.Coupon) error {
 	coup := partialCoupon
 	if partialCoupon.AppliesTo == nil {
 		params := &stripe.CouponParams{}
 		params.AddExpand("applies_to")
 		var err error
-		coup, err = coupon.Get(coup.ID, params)
+		coup, err = o.stripe.Coupons.Get(coup.ID, params)
 		if err != nil {
 			return err
 		}
 	}
 
-	return db.Q.UpsertCoupons(c, postgres.UpsertCouponsParams{
+	return o.db.Q.UpsertCoupons(c, postgres.UpsertCouponsParams{
 		ID:               coup.ID,
 		Object:           coup.Object,
 		AmountOff:        sql.NullInt64{Int64: coup.AmountOff, Valid: coup.AmountOff != 0},
@@ -41,20 +40,19 @@ func HandleCouponUpdated(c context.Context, db *postgres.PostgresStore, partialC
 	})
 }
 
-func HandleCouponDeleted(c context.Context, db *postgres.PostgresStore, coupon *stripe.Coupon) error {
-	return db.Q.DeleteCoupon(c, coupon.ID)
+func (o *Ops) HandleCouponDeleted(c context.Context, coupon *stripe.Coupon) error {
+	return o.db.Q.DeleteCoupon(c, coupon.ID)
 }
 
-func EnsureCouponLoaded(c context.Context, db *postgres.PostgresStore, couponID string) error {
-	exists, err := db.Q.CouponExists(c, couponID)
+func (o *Ops) EnsureCouponLoaded(c context.Context, couponID string) error {
+	exists, err := o.db.Q.CouponExists(c, couponID)
 	if err != nil {
 		return err
 	}
 	if !exists {
 		// HandleCouponUpdated will fetch the coupon from Stripe because AppliesTo isn't set
-		HandleCouponUpdated(c, db, &stripe.Coupon{ID: couponID})
+		o.HandleCouponUpdated(c, &stripe.Coupon{ID: couponID})
 	}
 
 	return nil
 }
-

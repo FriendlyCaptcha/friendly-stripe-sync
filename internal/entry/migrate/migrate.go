@@ -1,27 +1,28 @@
 package migrate
 
 import (
+	"context"
+	"fmt"
 	"os"
 
-	"github.com/friendlycaptcha/friendly-stripe-sync/internal/config"
+	"github.com/friendlycaptcha/friendly-stripe-sync/internal/config/cfgmodel"
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/db/postgres"
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/store"
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/telemetry"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/spf13/viper"
 )
 
 type MigrateOpts struct {
 	TargetVersion int
 }
 
-func Migrate(storeName string, operation string, opts MigrateOpts) {
-	config.InitConfig()
-	viper.Set("development", true)
+func Migrate(ctx context.Context, cfg cfgmodel.FriendlyStripeSync, storeName string, operation string, opts MigrateOpts) error {
+	// By setting `development` to true we make sure we flush the logs to stdout always.
+	cfg.Development = true
 
-	telemetry.SetupLogger()
+	telemetry.SetupLogger(cfg.Development, cfg.Debug, cfg.Logging)
 
 	// Contextual logger
 	l := log.With().Str("entry", "migrate").Str("store", storeName).Str("operation", operation).Logger()
@@ -31,8 +32,8 @@ func Migrate(storeName string, operation string, opts MigrateOpts) {
 
 	switch storeName {
 	case "postgres":
-		pg := postgres.NewPostgresStore()
-		pgMigrater, err := pg.GetMigrater()
+		pg := postgres.NewPostgresStore(cfg.Postgres)
+		pgMigrater, err := pg.GetMigrater(cfg.Postgres)
 		if err != nil {
 			l.Error().Err(err).Msg("Failed to get migrater")
 			os.Exit(1)
@@ -41,12 +42,12 @@ func Migrate(storeName string, operation string, opts MigrateOpts) {
 		defer migrater.Close()
 	default:
 		l.WithLevel(zerolog.FatalLevel).Msg("Unknown store, can't migrate")
-		os.Exit(1)
+		return fmt.Errorf("unknown store, can't migrate: %s", storeName)
 	}
 
 	migrater.SetLogger(migrationZeroLogger{
 		zerologger: l,
-		verbose:    viper.GetBool("debug"),
+		verbose:    cfg.Debug,
 	})
 
 	var err error
@@ -95,7 +96,10 @@ func Migrate(storeName string, operation string, opts MigrateOpts) {
 		l.Warn().Msg("Migration is at nil version (no migrations have been performed)")
 	} else if err != nil {
 		l.WithLevel(zerolog.FatalLevel).Err(err).Msg("Migration operation failed")
+		return fmt.Errorf("migration operation failed: %w", err)
 	}
 
 	l.Debug().Msg("Migration end")
+
+	return err
 }

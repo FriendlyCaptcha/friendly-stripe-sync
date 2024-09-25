@@ -9,8 +9,8 @@ import (
 	"github.com/stripe/stripe-go/v74"
 )
 
-func HandleSubscriptionUpdated(c context.Context, db *postgres.PostgresStore, subscription *stripe.Subscription) error {
-	err := EnsureCustomerLoaded(c, db, subscription.Customer.ID)
+func (o *Ops) HandleSubscriptionUpdated(ctx context.Context, subscription *stripe.Subscription) error {
+	err := o.EnsureCustomerLoaded(ctx, subscription.Customer.ID)
 	if err != nil {
 		return err
 	}
@@ -31,13 +31,13 @@ func HandleSubscriptionUpdated(c context.Context, db *postgres.PostgresStore, su
 			discountPromotionCode = utils.StringToNullString(subscription.Discount.PromotionCode.ID)
 		}
 
-		err := EnsureCouponLoaded(c, db, subscription.Discount.Coupon.ID)
+		err := o.EnsureCouponLoaded(ctx, subscription.Discount.Coupon.ID)
 		if err != nil {
 			return err
 		}
 	}
 
-	err = db.Q.UpsertSubscription(c, postgres.UpsertSubscriptionParams{
+	err = o.db.Q.UpsertSubscription(ctx, postgres.UpsertSubscriptionParams{
 		ID:                            subscription.ID,
 		Object:                        subscription.Object,
 		CancelAtPeriodEnd:             subscription.CancelAtPeriodEnd,
@@ -77,12 +77,12 @@ func HandleSubscriptionUpdated(c context.Context, db *postgres.PostgresStore, su
 	}
 
 	for _, item := range subscription.Items.Data {
-		err := EnsurePriceLoaded(c, db, item.Price.ID)
+		err := o.EnsurePriceLoaded(ctx, item.Price.ID)
 		if err != nil {
 			return err
 		}
 
-		err = db.Q.UpsertSubscriptionItem(c, postgres.UpsertSubscriptionItemParams{
+		err = o.db.Q.UpsertSubscriptionItem(ctx, postgres.UpsertSubscriptionItemParams{
 			ID:                item.ID,
 			Object:            item.Object,
 			BillingThresholds: utils.MarshalToNullRawMessage(item.BillingThresholds),
@@ -101,8 +101,8 @@ func HandleSubscriptionUpdated(c context.Context, db *postgres.PostgresStore, su
 	return nil
 }
 
-func HandleSubscriptionDiscountUpdated(c context.Context, db *postgres.PostgresStore, discount *stripe.Discount) error {
-	err := EnsureCouponLoaded(c, db, discount.Coupon.ID)
+func (o *Ops) HandleSubscriptionDiscountUpdated(c context.Context, discount *stripe.Discount) error {
+	err := o.EnsureCouponLoaded(c, discount.Coupon.ID)
 	if err != nil {
 		return err
 	}
@@ -123,7 +123,7 @@ func HandleSubscriptionDiscountUpdated(c context.Context, db *postgres.PostgresS
 		}
 	}
 
-	return db.Q.UpdateSubscriptionDiscount(c, postgres.UpdateSubscriptionDiscountParams{
+	return o.db.Q.UpdateSubscriptionDiscount(c, postgres.UpdateSubscriptionDiscountParams{
 		DiscountID:            utils.StringToNullString(discount.ID),
 		DiscountStart:         utils.Int64ToNullInt64(discount.Start),
 		DiscountEnd:           utils.Int64ToNullInt64(discount.End),
