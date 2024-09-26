@@ -1,19 +1,29 @@
 package sync
 
 import (
+	"context"
+	"fmt"
+
+	"github.com/friendlycaptcha/friendly-stripe-sync/internal/config/cfgmodel"
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/db/postgres"
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/ops"
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/telemetry"
-	"github.com/rs/zerolog/log"
 )
 
-func Start() {
-	telemetry.SetupLogger()
+func Start(ctx context.Context, cfg cfgmodel.FriendlyStripeSync) error {
+	telemetry.SetupLogger(cfg.Development, cfg.Debug, cfg.Logging)
 
-	db := postgres.NewPostgresStore()
-
-	err := ops.SyncEvents(db)
+	db, err := postgres.NewPostgresStore(cfg.Postgres)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to sync events")
+		return fmt.Errorf("failed to create postgres store: %w", err)
 	}
+
+	stripesync := ops.New(db, cfg.StripeSync, cfg.Stripe.APIKey)
+
+	err = stripesync.SyncEvents(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to sync events: %w", err)
+	}
+
+	return nil
 }

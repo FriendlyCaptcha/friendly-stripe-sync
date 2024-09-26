@@ -8,35 +8,32 @@ import (
 	"strings"
 	"time"
 
+	"github.com/friendlycaptcha/friendly-stripe-sync/internal/config/cfgmodel"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
-	"github.com/spf13/viper"
 )
 
-func BuildConnectionDSN(dbname string) string {
-	password := viper.GetString("postgres.password")
+func BuildConnectionDSN(cfg cfgmodel.Postgres) string {
+	password := cfg.Password
 
 	dsn := fmt.Sprintf("host=%s port=%d dbname=%s user=%s sslmode=%s",
-		viper.GetString("postgres.host"), viper.GetInt("postgres.port"), dbname, viper.GetString("postgres.user"), viper.GetString("postgres.sslmode"))
+		cfg.Host, cfg.Port, cfg.DBName, cfg.User, cfg.SSLMode)
 
 	if password != "" {
 		dsn += " password=" + password
 	}
 	return dsn
-
 }
 
 type PostgresStore struct {
-	db     *sqlx.DB
-	Q      *Queries
-	dbname string
+	db *sqlx.DB
+	Q  *Queries
 }
 
-func NewPostgresStore() *PostgresStore {
-	dbname := viper.GetString("postgres.dbname")
-	db, err := sqlx.Open("postgres", BuildConnectionDSN(dbname))
+func NewPostgresStore(cfg cfgmodel.Postgres) (*PostgresStore, error) {
+	db, err := sqlx.Open("postgres", BuildConnectionDSN(cfg))
 	if err != nil {
-		log.Fatalf("Failed to connect to postgres store: %v", err)
+		return nil, fmt.Errorf("Failed to connect to postgres store: %w", err)
 	}
 
 	db.SetMaxIdleConns(20)
@@ -44,16 +41,14 @@ func NewPostgresStore() *PostgresStore {
 	db.SetConnMaxLifetime(time.Hour * 1)
 
 	return &PostgresStore{
-		db:     db,
-		Q:      New(db),
-		dbname: dbname,
-	}
+		db: db,
+		Q:  New(db),
+	}, nil
 }
 
-func NewPostgresTestStore() (*PostgresStore, func()) {
+func NewPostgresTestStore(cfg cfgmodel.Postgres) (*PostgresStore, func()) {
 	// We first need to authenticate against the ordinary dbname
-	dbname := viper.GetString("postgres.dbname")
-	dbBootstrap, err := sqlx.Open("postgres", BuildConnectionDSN(dbname))
+	dbBootstrap, err := sqlx.Open("postgres", BuildConnectionDSN(cfg))
 	if err != nil {
 		log.Fatalf("Failed to connect to postgres bootstrap store: %v", err)
 	}
@@ -62,13 +57,16 @@ func NewPostgresTestStore() (*PostgresStore, func()) {
 	if _, err := rand.Read(b); err != nil {
 		panic(err)
 	}
-	dbname = "friendly_stripe_sync_test_" + strings.ToLower(fmt.Sprintf("%X", b))
-	_, err = dbBootstrap.Exec(`CREATE DATABASE ` + dbname + `;`)
+
+	cfgTest := cfg // Copy the config
+	cfgTest.DBName = "friendly_stripe_sync_test_" + strings.ToLower(fmt.Sprintf("%X", b))
+
+	_, err = dbBootstrap.Exec(`CREATE DATABASE ` + cfg.DBName + `;`)
 	if err != nil {
 		log.Fatalf("Couldn't create Postgres test DB: %v", err)
 	}
 
-	db, err := sqlx.Open("postgres", BuildConnectionDSN(dbname))
+	db, err := sqlx.Open("postgres", BuildConnectionDSN(cfgTest))
 	if err != nil {
 		log.Fatalf("Failed to connect to postgres test store: %v", err)
 	}
@@ -79,7 +77,7 @@ func NewPostgresTestStore() (*PostgresStore, func()) {
 			os.Exit(-5)
 		}
 
-		_, err = dbBootstrap.Exec(fmt.Sprintf("DROP DATABASE %s", dbname))
+		_, err = dbBootstrap.Exec(fmt.Sprintf("DROP DATABASE %s", cfgTest.DBName))
 		if err != nil {
 			log.Fatalf("Couldn't DROP db: %v", err)
 		}
@@ -92,11 +90,10 @@ func NewPostgresTestStore() (*PostgresStore, func()) {
 	}
 
 	store := &PostgresStore{
-		db:     db,
-		Q:      New(db),
-		dbname: dbname,
+		db: db,
+		Q:  New(db),
 	}
-	mig, err := store.GetMigrater()
+	mig, err := store.GetMigrater(cfgTest)
 	if err != nil {
 		log.Printf("Failed to get postgres migrater: %v\n", err)
 		cleanup()

@@ -7,6 +7,8 @@ import (
 
 	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/viper"
+
+	"github.com/friendlycaptcha/friendly-stripe-sync/internal/config/cfgmodel"
 )
 
 var CfgFile string
@@ -43,4 +45,16 @@ func InitConfig() {
 	}
 
 	setupDefaults()
+}
+
+// GetStruct returns the config as a plain struct. You should call this after InitConfig.
+func GetStruct() cfgmodel.FriendlyStripeSync {
+	cfg := cfgmodel.FriendlyStripeSync{}
+
+	err := viper.Unmarshal(&cfg)
+	if err != nil {
+		panic("Failed to unmarshal config: " + err.Error())
+	}
+
+	return cfg
 }

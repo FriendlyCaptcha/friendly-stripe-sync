@@ -1,6 +1,7 @@
 package migrate
 
 import (
+	"github.com/friendlycaptcha/friendly-stripe-sync/internal/config"
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/entry/migrate"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -40,16 +41,18 @@ func buildMigrationCommand(datastoreName string) *cobra.Command {
 	up := &cobra.Command{
 		Use:   "up",
 		Short: "Migrates the store to the latest version",
-		Run: func(cmd *cobra.Command, args []string) {
-			migrate.Migrate(datastoreName, "up", migrate.MigrateOpts{})
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			cfg := config.GetStruct()
+			return migrate.Migrate(cmd.Context(), cfg, datastoreName, "up", migrate.MigrateOpts{})
 		},
 	}
 
 	down := &cobra.Command{
 		Use:   "down",
 		Short: "Migrates the store to the earliest version",
-		Run: func(cmd *cobra.Command, args []string) {
-			migrate.Migrate(datastoreName, "down", migrate.MigrateOpts{})
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			cfg := config.GetStruct()
+			return migrate.Migrate(cmd.Context(), cfg, datastoreName, "down", migrate.MigrateOpts{})
 		},
 	}
 	down.Flags().Bool("danger", false, "Pass --danger to acknowledge this is potentially dangerous.")
@@ -58,24 +61,27 @@ func buildMigrationCommand(datastoreName string) *cobra.Command {
 	version := &cobra.Command{
 		Use:   "version",
 		Short: "Prints the current version and \"dirty\" state",
-		Run: func(cmd *cobra.Command, args []string) {
-			migrate.Migrate(datastoreName, "version", migrate.MigrateOpts{})
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			cfg := config.GetStruct()
+			return migrate.Migrate(cmd.Context(), cfg, datastoreName, "version", migrate.MigrateOpts{})
 		},
 	}
 
 	list := &cobra.Command{
 		Use:   "list",
 		Short: "Lists the migrations known to the application",
-		Run: func(cmd *cobra.Command, args []string) {
-			migrate.Migrate(datastoreName, "list", migrate.MigrateOpts{})
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			cfg := config.GetStruct()
+			return migrate.Migrate(cmd.Context(), cfg, datastoreName, "list", migrate.MigrateOpts{})
 		},
 	}
 
 	force := &cobra.Command{
 		Use:   "force",
 		Short: "Forces the migration state to the given version",
-		Run: func(cmd *cobra.Command, args []string) {
-			migrate.Migrate(datastoreName, "force", migrate.MigrateOpts{
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			cfg := config.GetStruct()
+			return migrate.Migrate(cmd.Context(), cfg, datastoreName, "force", migrate.MigrateOpts{
 				TargetVersion: getVersionFlagValue(cmd),
 			})
 		},
@@ -88,8 +94,9 @@ func buildMigrationCommand(datastoreName string) *cobra.Command {
 	to := &cobra.Command{
 		Use:   "to",
 		Short: "Migrates to the given version (up or down)",
-		Run: func(cmd *cobra.Command, args []string) {
-			migrate.Migrate(datastoreName, "to", migrate.MigrateOpts{
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			cfg := config.GetStruct()
+			return migrate.Migrate(cmd.Context(), cfg, datastoreName, "to", migrate.MigrateOpts{
 				TargetVersion: getVersionFlagValue(cmd),
 			})
 		},

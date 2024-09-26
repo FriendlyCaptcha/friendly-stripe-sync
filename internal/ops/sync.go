@@ -4,16 +4,16 @@ import (
 	"container/list"
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 
-	"github.com/friendlycaptcha/friendly-stripe-sync/internal/db/postgres"
 	"github.com/rs/zerolog/log"
 	"github.com/stripe/stripe-go/v74"
-	"github.com/stripe/stripe-go/v74/event"
 )
 
-func SyncEvents(db *postgres.PostgresStore) error {
-	c := context.Background()
+func (o *Ops) SyncEvents(ctx context.Context) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
 	params := &stripe.EventListParams{
 		ListParams: stripe.ListParams{
@@ -41,26 +41,26 @@ func SyncEvents(db *postgres.PostgresStore) error {
 		},
 	}
 
-	latestSnyc, err := db.Q.GetCurrentSyncState(c)
+	latestSync, err := o.db.Q.GetCurrentSyncState(ctx)
 	if err == nil {
 		timeLimit := time.Now().AddDate(0, 0, -30).Unix()
-		if latestSnyc.LastEvent < timeLimit {
+		if latestSync.LastEvent < timeLimit {
 			log.Warn().Msg("Last sync was more than 28 days ago, do an initial load to make sure there is no missing data")
 		}
 
 		params.CreatedRange = &stripe.RangeQueryParams{
-			GreaterThan: latestSnyc.LastEvent,
+			GreaterThan: latestSync.LastEvent,
 		}
 	} else if err == sql.ErrNoRows {
 		log.Warn().Msg("No sync state found, you should do an initial load first")
 	} else {
-		log.Fatal().Err(err).Msg("Failed to get latest sync state")
+		return fmt.Errorf("failed to get latest sync state: %w", err)
 	}
 
-	log.Info().Int64("last_sync", latestSnyc.LastEvent).Msgf("Starting to load events from stripe")
+	log.Info().Int64("last_sync", latestSync.LastEvent).Msgf("Starting to load events from stripe")
 
 	events := list.New()
-	i := event.List(params)
+	i := o.stripe.Events.List(params)
 	for i.Next() {
 		e := i.Event()
 
@@ -74,13 +74,13 @@ func SyncEvents(db *postgres.PostgresStore) error {
 	for event := events.Front(); event != nil; event = event.Next() {
 		e := event.Value.(*stripe.Event)
 
-		err := HandleEvent(c, db, e)
+		err := o.HandleEvent(ctx, e)
 		if err != nil {
 			// if handling an event fails we abort the whole sync because we don't want to miss any events
 			log.Error().Err(err).Msg("Failed to handle event")
-			return err
+			return fmt.Errorf("failed to handle event: %w", err)
 		}
-		err = db.Q.SetSyncState(c, e.Created)
+		err = o.db.Q.SetSyncState(ctx, e.Created)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to update sync state")
 		}

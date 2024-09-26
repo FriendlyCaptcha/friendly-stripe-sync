@@ -3,37 +3,40 @@ package watch
 import (
 	"context"
 	"database/sql"
-	"os"
-	"os/signal"
-	"syscall"
+	"fmt"
 	"time"
 
+	"github.com/friendlycaptcha/friendly-stripe-sync/internal/config/cfgmodel"
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/db/postgres"
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/ops"
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/telemetry"
 	"github.com/rs/zerolog/log"
-	"github.com/spf13/viper"
 )
 
-func Start() {
-	telemetry.SetupLogger()
+func Start(ctx context.Context, cfg cfgmodel.FriendlyStripeSync) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
-	intervalSeconds := viper.GetInt("stripe_sync.interval_seconds")
+	telemetry.SetupLogger(cfg.Development, cfg.Debug, cfg.Logging)
 
-	sc := make(chan os.Signal, 1)
-	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
+	intervalSeconds := cfg.StripeSync.IntervalSeconds
 
-	db := postgres.NewPostgresStore()
+	db, err := postgres.NewPostgresStore(cfg.Postgres)
+	if err != nil {
+		return fmt.Errorf("failed to create postgres store: %w", err)
+	}
 
-	_, err := db.Q.GetCurrentSyncState(context.Background())
+	stripesync := ops.New(db, cfg.StripeSync, cfg.Stripe.APIKey)
+
+	_, err = db.Q.GetCurrentSyncState(ctx)
 	if err == sql.ErrNoRows {
 		log.Info().Msg("No sync state found, doing an initial load")
-		err := ops.InititalLoad(db)
+		err := stripesync.InitialLoad(ctx, cfg.Purge)
 		if err != nil {
-			log.Fatal().Err(err).Msg("Failed to load initial data")
+			return fmt.Errorf("failed to load initial data: %w", err)
 		}
 	} else if err != nil {
-		log.Fatal().Err(err).Msg("Failed to get latest sync state")
+		return fmt.Errorf("failed to get latest sync state: %w", err)
 	}
 
 	log.Info().Msgf("Starting to sync events every %d seconds", intervalSeconds)
@@ -41,11 +44,11 @@ func Start() {
 	ticker := time.NewTicker(time.Duration(intervalSeconds) * time.Second)
 	for {
 		select {
-		case <-sc:
+		case <-ctx.Done():
 			ticker.Stop()
-			return
+			return nil
 		case <-ticker.C:
-			err := ops.SyncEvents(db)
+			err := stripesync.SyncEvents(ctx)
 			if err != nil {
 				log.Error().Err(err).Msg("Failed to sync events")
 			}

@@ -5,6 +5,7 @@ import (
 	"embed"
 	"fmt"
 
+	"github.com/friendlycaptcha/friendly-stripe-sync/internal/config/cfgmodel"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
@@ -63,13 +64,13 @@ func (mig *PostgresStoreMigrater) SetLogger(logger migrate.Logger) {
 	mig.m.Log = logger
 }
 
-func (pgs *PostgresStore) GetMigrater() (*PostgresStoreMigrater, error) {
+func (pgs *PostgresStore) GetMigrater(cfg cfgmodel.Postgres) (*PostgresStoreMigrater, error) {
 	d, err := iofs.New(migrationsFS, "migrations")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open Postgres migrations iofs: %w", err)
 	}
 
-	connString := BuildConnectionDSN(pgs.dbname)
+	connString := BuildConnectionDSN(cfg)
 	db, err := sql.Open("postgres", connString)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open postgres db with postgres driver: %w", err)

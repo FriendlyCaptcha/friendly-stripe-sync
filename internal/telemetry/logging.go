@@ -5,7 +5,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/spf13/viper"
+	"github.com/friendlycaptcha/friendly-stripe-sync/internal/config/cfgmodel"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/diode"
@@ -14,7 +14,7 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-func SetupLogger() {
+func SetupLogger(development bool, debug bool, cfg cfgmodel.Logging) {
 	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnixMs
 
@@ -27,30 +27,30 @@ func SetupLogger() {
 	logContext := log.With().
 		Str("host", hostname)
 
-	if viper.GetBool("debug") {
+	if debug {
 		logContext = logContext.Caller()
 	}
 
 	logWriters := make([]io.Writer, 0)
-	if viper.GetBool("development") {
+	if development {
 		logWriters = append(logWriters, zerolog.ConsoleWriter{Out: os.Stdout})
 	} else {
 		logWriters = append(logWriters, syncWriter())
 	}
 
-	if viper.GetString("logging.filename") != "" {
+	if cfg.Filename != "" {
 		lj := lumberjack.Logger{
-			Filename:   viper.GetString("logging.filename"),
-			MaxSize:    viper.GetInt("logging.max_size"),
-			MaxAge:     viper.GetInt("logging.max_age"),
-			MaxBackups: viper.GetInt("logging.max_backups"),
+			Filename:   cfg.Filename,
+			MaxSize:    cfg.MaxSize,
+			MaxAge:     cfg.MaxAge,
+			MaxBackups: cfg.MaxBackups,
 		}
 		logWriters = append(logWriters, &lj)
 	}
 	writer := io.MultiWriter(logWriters...)
 	log.Logger = logContext.Logger().Output(writer)
 
-	if viper.GetBool("debug") {
+	if debug {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	} else {
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
