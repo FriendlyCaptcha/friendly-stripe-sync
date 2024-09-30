@@ -86,6 +86,9 @@ func (o *StripeSync) SyncEvents(ctx context.Context) error {
 		// we reverse the list because stripe gives us the events in reverse chronological order
 		events.PushFront(e)
 	}
+	if err := i.Err(); err != nil {
+		return fmt.Errorf("failed to list events: %w", err)
+	}
 
 	log.Info().Msgf("Finished loading %d events", events.Len())
 	log.Info().Msgf("Starting to apply events to database")
