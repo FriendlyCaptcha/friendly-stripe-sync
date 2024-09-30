@@ -35,19 +35,24 @@ type PostgresConfig struct {
 	SSLMode  string
 }
 
+// StoreConfig returns the PostgresConfig as the postgres package expects it.
+func (pc PostgresConfig) StoreConfig() postgres.Config {
+	return postgres.Config{
+		Host:     pc.Host,
+		Port:     pc.Port,
+		User:     pc.User,
+		Password: pc.Password,
+		DBName:   pc.DBName,
+		SSLMode:  pc.SSLMode,
+	}
+}
+
 // New creates a new StripeSync handle.
 func New(cfg Config) (*StripeSync, error) {
 	stripeClient := &client.API{}
 	stripeClient.Init(cfg.StripeAPIKey, nil)
 
-	db, err := postgres.NewPostgresStore(postgres.Config{
-		Host:     cfg.Postgres.Host,
-		Port:     cfg.Postgres.Port,
-		User:     cfg.Postgres.User,
-		Password: cfg.Postgres.Password,
-		DBName:   cfg.Postgres.DBName,
-		SSLMode:  cfg.Postgres.SSLMode,
-	})
+	db, err := postgres.NewPostgresStore(cfg.Postgres.StoreConfig())
 	if err != nil {
 		return nil, fmt.Errorf("failed to create postgres store: %w", err)
 	}

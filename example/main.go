@@ -27,6 +27,11 @@ func main() {
 
 	ctx := context.Background()
 
+	err = stripesync.MigrateDB(ctx)
+	if err != nil {
+		panic(err)
+	}
+
 	ss, err := stripesync.GetCurrentSyncState(ctx)
 	if err != nil {
 		panic(err)
