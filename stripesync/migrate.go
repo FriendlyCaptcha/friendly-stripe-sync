@@ -2,7 +2,10 @@ package stripesync
 
 import (
 	"context"
+	"errors"
 	"fmt"
+
+	"github.com/golang-migrate/migrate/v4"
 )
 
 // MigrateDB automatically migrates the database schema to the latest version.
@@ -17,6 +20,10 @@ func (o StripeSync) MigrateDB(ctx context.Context) error {
 
 	err = mig.Up()
 	if err != nil {
+		if errors.Is(err, migrate.ErrNoChange) {
+			return nil
+		}
+
 		return fmt.Errorf("failed to migrate up automatically,"+
 			" you will need to fix using the friendly-stripe-sync binary (or manual SQL operations): %w", err)
 	}
