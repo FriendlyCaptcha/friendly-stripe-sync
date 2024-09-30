@@ -1,4 +1,4 @@
-package ops
+package stripesync
 
 import (
 	"context"
@@ -17,62 +17,53 @@ func unmarshalEventData[T interface{}](e *stripe.Event) (*T, error) {
 	return &data, err
 }
 
-func (o *StripeSync) HandleEvent(c context.Context, e *stripe.Event) error {
+func (o *StripeSync) handleEvent(c context.Context, e *stripe.Event) error {
 	switch e.Type {
 	case "customer.created", "customer.updated", "customer.deleted":
 		customer, err := unmarshalEventData[stripe.Customer](e)
 		if err == nil {
-			return o.HandleCustomerUpdated(c, customer)
+			return o.handleCustomerUpdated(c, customer)
 		}
-		break
 	case "product.created", "product.updated":
 		product, err := unmarshalEventData[stripe.Product](e)
 		if err == nil {
-			return o.HandleProductUpdated(c, product)
+			return o.handleProductUpdated(c, product)
 		}
-		break
 	case "product.deleted":
 		product, err := unmarshalEventData[stripe.Product](e)
 		if err == nil {
-			return o.HandleProductDeleted(c, product)
+			return o.handleProductDeleted(c, product)
 		}
-		break
 	case "customer.subscription.created", "customer.subscription.updated", "customer.subscription.deleted", "customer.subscription.paused":
 		subscription, err := unmarshalEventData[stripe.Subscription](e)
 		if err == nil {
-			return o.HandleSubscriptionUpdated(c, subscription)
+			return o.handleSubscriptionUpdated(c, subscription)
 		}
-		break
 	case "price.created", "price.updated":
 		price, err := unmarshalEventData[stripe.Price](e)
 		if err == nil {
-			return o.HandlePriceUpdated(c, price)
+			return o.handlePriceUpdated(c, price)
 		}
-		break
 	case "price.deleted":
 		price, err := unmarshalEventData[stripe.Price](e)
 		if err == nil {
-			return o.HandlePriceDeleted(c, price)
+			return o.handlePriceDeleted(c, price)
 		}
-		break
 	case "coupon.created", "coupon.updated":
 		coupon, err := unmarshalEventData[stripe.Coupon](e)
 		if err == nil {
-			return o.HandleCouponUpdated(c, coupon)
+			return o.handleCouponUpdated(c, coupon)
 		}
-		break
 	case "coupon.deleted":
 		coupon, err := unmarshalEventData[stripe.Coupon](e)
 		if err == nil {
-			return o.HandleCouponDeleted(c, coupon)
+			return o.handleCouponDeleted(c, coupon)
 		}
-		break
 	case "customer.discount.updated", "customer.discount.deleted":
 		discount, err := unmarshalEventData[stripe.Discount](e)
 		if err == nil {
-			return o.HandleSubscriptionDiscountUpdated(c, discount)
+			return o.handleSubscriptionDiscountUpdated(c, discount)
 		}
-		break
 	}
 	return nil
 }

@@ -1,4 +1,4 @@
-package ops
+package stripesync
 
 import (
 	"container/list"
@@ -12,6 +12,7 @@ import (
 	"github.com/stripe/stripe-go/v74"
 )
 
+// ErrNoSyncState is returned when no sync state is found in the database.
 var ErrNoSyncState = fmt.Errorf("no sync state found")
 
 // SyncState contains information about previous sync operations.
@@ -63,7 +64,7 @@ func (o *StripeSync) SyncEvents(ctx context.Context) error {
 		},
 	}
 
-	syncState, err := o.SyncState(ctx)
+	syncState, err := o.GetCurrentSyncState(ctx)
 	if err != nil {
 		if !errors.Is(err, ErrNoSyncState) {
 			log.Warn().Msg("No sync state found, you should do an initial load first")
@@ -92,7 +93,7 @@ func (o *StripeSync) SyncEvents(ctx context.Context) error {
 	for event := events.Front(); event != nil; event = event.Next() {
 		e := event.Value.(*stripe.Event)
 
-		err := o.HandleEvent(ctx, e)
+		err := o.handleEvent(ctx, e)
 		if err != nil {
 			// if handling an event fails we abort the whole sync because we don't want to miss any events
 			log.Error().Err(err).Msg("Failed to handle event")
@@ -109,8 +110,8 @@ func (o *StripeSync) SyncEvents(ctx context.Context) error {
 	return nil
 }
 
-// SyncState returns the current sync state from the database.
-func (o *StripeSync) SyncState(ctx context.Context) (SyncState, error) {
+// GetCurrentSyncState returns the current sync state from the database.
+func (o *StripeSync) GetCurrentSyncState(ctx context.Context) (SyncState, error) {
 	ss, err := o.db.Q.GetCurrentSyncState(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

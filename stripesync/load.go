@@ -1,4 +1,4 @@
-package ops
+package stripesync
 
 import (
 	"context"
@@ -9,6 +9,9 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// InitialLoad loads all data from Stripe into the database. This is generally necessary if you have not synced
+// in the last 30 days, as Stripe only keeps events for 30 days.
+// If purge is true, it will delete all existing data from the database before loading.
 func (o *StripeSync) InitialLoad(ctx context.Context, purge bool) error {
 	if purge {
 		log.Info().Msgf("Deleting all existing data from database")
@@ -84,7 +87,7 @@ func (o *StripeSync) loadCustomers(c context.Context) error {
 	count := 0
 	for customers.Next() {
 		cus := customers.Customer()
-		err := o.HandleCustomerUpdated(c, cus)
+		err := o.handleCustomerUpdated(c, cus)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to handle loaded customer")
 			return err
@@ -100,7 +103,7 @@ func (o *StripeSync) loadProducts(c context.Context) error {
 	count := 0
 	for products.Next() {
 		p := products.Product()
-		err := o.HandleProductUpdated(c, p)
+		err := o.handleProductUpdated(c, p)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to handle loaded product")
 			return err
@@ -116,7 +119,7 @@ func (o *StripeSync) loadPrices(c context.Context) error {
 	count := 0
 	for prices.Next() {
 		p := prices.Price()
-		err := o.HandlePriceUpdated(c, p)
+		err := o.handlePriceUpdated(c, p)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to handle loaded price")
 			return err
@@ -132,7 +135,7 @@ func (o *StripeSync) loadSubscriptions(c context.Context) error {
 	count := 0
 	for subscriptions.Next() {
 		s := subscriptions.Subscription()
-		err := o.HandleSubscriptionUpdated(c, s)
+		err := o.handleSubscriptionUpdated(c, s)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to handle loaded subscription")
 			return err

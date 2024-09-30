@@ -5,7 +5,6 @@ import (
 	"embed"
 	"fmt"
 
-	"github.com/friendlycaptcha/friendly-stripe-sync/cfgmodel"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
@@ -64,7 +63,7 @@ func (mig *PostgresStoreMigrater) SetLogger(logger migrate.Logger) {
 	mig.m.Log = logger
 }
 
-func (pgs *PostgresStore) GetMigrater(cfg cfgmodel.Postgres) (*PostgresStoreMigrater, error) {
+func (pgs *Store) GetMigrater(cfg Config) (*PostgresStoreMigrater, error) {
 	d, err := iofs.New(migrationsFS, "migrations")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open Postgres migrations iofs: %w", err)

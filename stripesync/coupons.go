@@ -1,15 +1,16 @@
-package ops
+package stripesync
 
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
-	"github.com/friendlycaptcha/friendly-stripe-sync/db/postgres"
+	"github.com/friendlycaptcha/friendly-stripe-sync/internal/db/postgres"
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/utils"
 	"github.com/stripe/stripe-go/v74"
 )
 
-func (o *StripeSync) HandleCouponUpdated(c context.Context, partialCoupon *stripe.Coupon) error {
+func (o *StripeSync) handleCouponUpdated(c context.Context, partialCoupon *stripe.Coupon) error {
 	coup := partialCoupon
 	if partialCoupon.AppliesTo == nil {
 		params := &stripe.CouponParams{}
@@ -40,18 +41,21 @@ func (o *StripeSync) HandleCouponUpdated(c context.Context, partialCoupon *strip
 	})
 }
 
-func (o *StripeSync) HandleCouponDeleted(c context.Context, coupon *stripe.Coupon) error {
+func (o *StripeSync) handleCouponDeleted(c context.Context, coupon *stripe.Coupon) error {
 	return o.db.Q.DeleteCoupon(c, coupon.ID)
 }
 
-func (o *StripeSync) EnsureCouponLoaded(c context.Context, couponID string) error {
+func (o *StripeSync) ensureCouponLoaded(c context.Context, couponID string) error {
 	exists, err := o.db.Q.CouponExists(c, couponID)
 	if err != nil {
 		return err
 	}
 	if !exists {
 		// HandleCouponUpdated will fetch the coupon from Stripe because AppliesTo isn't set
-		o.HandleCouponUpdated(c, &stripe.Coupon{ID: couponID})
+		err = o.handleCouponUpdated(c, &stripe.Coupon{ID: couponID})
+		if err != nil {
+			return fmt.Errorf("failed to upsert coupon: %w", err)
+		}
 	}
 
 	return nil

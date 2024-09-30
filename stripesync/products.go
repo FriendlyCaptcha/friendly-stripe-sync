@@ -1,15 +1,15 @@
-package ops
+package stripesync
 
 import (
 	"context"
 	"fmt"
 
-	"github.com/friendlycaptcha/friendly-stripe-sync/db/postgres"
+	"github.com/friendlycaptcha/friendly-stripe-sync/internal/db/postgres"
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/utils"
 	"github.com/stripe/stripe-go/v74"
 )
 
-func (o *StripeSync) HandleProductUpdated(c context.Context, product *stripe.Product) error {
+func (o *StripeSync) handleProductUpdated(c context.Context, product *stripe.Product) error {
 	return o.db.Q.UpsertProduct(c, postgres.UpsertProductParams{
 		ID:                  product.ID,
 		Object:              product.Object,
@@ -29,11 +29,11 @@ func (o *StripeSync) HandleProductUpdated(c context.Context, product *stripe.Pro
 	})
 }
 
-func (o *StripeSync) HandleProductDeleted(c context.Context, product *stripe.Product) error {
+func (o *StripeSync) handleProductDeleted(c context.Context, product *stripe.Product) error {
 	return o.db.Q.DeleteProduct(c, product.ID)
 }
 
-func (o *StripeSync) EnsureProductLoaded(c context.Context, productId string) error {
+func (o *StripeSync) ensureProductLoaded(c context.Context, productId string) error {
 	exists, err := o.db.Q.ProductExists(c, productId)
 	if err != nil {
 		return err
@@ -43,7 +43,7 @@ func (o *StripeSync) EnsureProductLoaded(c context.Context, productId string) er
 		if err != nil {
 			return err
 		}
-		err = o.HandleProductUpdated(c, product)
+		err = o.handleProductUpdated(c, product)
 		if err != nil {
 			return fmt.Errorf("failed to upsert product: %w", err)
 		}

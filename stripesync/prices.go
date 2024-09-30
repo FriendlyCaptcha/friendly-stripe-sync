@@ -1,17 +1,17 @@
-package ops
+package stripesync
 
 import (
 	"context"
 	"database/sql"
 	"fmt"
 
-	"github.com/friendlycaptcha/friendly-stripe-sync/db/postgres"
+	"github.com/friendlycaptcha/friendly-stripe-sync/internal/db/postgres"
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/utils"
 	"github.com/stripe/stripe-go/v74"
 )
 
-func (o *StripeSync) HandlePriceUpdated(c context.Context, price *stripe.Price) error {
-	err := o.EnsureProductLoaded(c, price.Product.ID)
+func (o *StripeSync) handlePriceUpdated(c context.Context, price *stripe.Price) error {
+	err := o.ensureProductLoaded(c, price.Product.ID)
 	if err != nil {
 		return err
 	}
@@ -36,11 +36,11 @@ func (o *StripeSync) HandlePriceUpdated(c context.Context, price *stripe.Price) 
 	})
 }
 
-func (o *StripeSync) HandlePriceDeleted(c context.Context, price *stripe.Price) error {
+func (o *StripeSync) handlePriceDeleted(c context.Context, price *stripe.Price) error {
 	return o.db.Q.DeleteProduct(c, price.ID)
 }
 
-func (o *StripeSync) EnsurePriceLoaded(c context.Context, priceID string) error {
+func (o *StripeSync) ensurePriceLoaded(c context.Context, priceID string) error {
 	exists, err := o.db.Q.PriceExists(c, priceID)
 	if err != nil {
 		return err
@@ -50,7 +50,7 @@ func (o *StripeSync) EnsurePriceLoaded(c context.Context, priceID string) error 
 		if err != nil {
 			return err
 		}
-		err = o.HandlePriceUpdated(c, price)
+		err = o.handlePriceUpdated(c, price)
 		if err != nil {
 			return fmt.Errorf("failed to upsert price: %w", err)
 		}

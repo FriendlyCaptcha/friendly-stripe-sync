@@ -1,17 +1,17 @@
-package ops
+package stripesync
 
 import (
 	"context"
 	"database/sql"
 	"fmt"
 
-	"github.com/friendlycaptcha/friendly-stripe-sync/db/postgres"
+	"github.com/friendlycaptcha/friendly-stripe-sync/internal/db/postgres"
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/utils"
 	"github.com/sqlc-dev/pqtype"
 	"github.com/stripe/stripe-go/v74"
 )
 
-func (o *StripeSync) HandleCustomerUpdated(c context.Context, customer *stripe.Customer) error {
+func (o *StripeSync) handleCustomerUpdated(c context.Context, customer *stripe.Customer) error {
 	address := utils.MarshalToNullRawMessage(customer.Address)
 	phone := utils.StringToNullString(customer.Phone)
 
@@ -49,7 +49,7 @@ func (o *StripeSync) HandleCustomerUpdated(c context.Context, customer *stripe.C
 	})
 }
 
-func (o *StripeSync) EnsureCustomerLoaded(ctx context.Context, customerID string) error {
+func (o *StripeSync) ensureCustomerLoaded(ctx context.Context, customerID string) error {
 	exists, err := o.db.Q.CustomerExists(ctx, customerID)
 	if err != nil {
 		return err
@@ -59,7 +59,7 @@ func (o *StripeSync) EnsureCustomerLoaded(ctx context.Context, customerID string
 		if err != nil {
 			return err
 		}
-		err = o.HandleCustomerUpdated(ctx, customer)
+		err = o.handleCustomerUpdated(ctx, customer)
 		if err != nil {
 			return fmt.Errorf("failed to upsert customer: %w", err)
 		}

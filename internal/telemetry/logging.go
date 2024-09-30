@@ -5,7 +5,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/friendlycaptcha/friendly-stripe-sync/cfgmodel"
+	"github.com/friendlycaptcha/friendly-stripe-sync/internal/cfgmodel"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/diode"

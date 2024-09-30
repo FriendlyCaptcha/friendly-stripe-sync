@@ -1,16 +1,16 @@
-package ops
+package stripesync
 
 import (
 	"context"
 	"database/sql"
 
-	"github.com/friendlycaptcha/friendly-stripe-sync/db/postgres"
+	"github.com/friendlycaptcha/friendly-stripe-sync/internal/db/postgres"
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/utils"
 	"github.com/stripe/stripe-go/v74"
 )
 
-func (o *StripeSync) HandleSubscriptionUpdated(ctx context.Context, subscription *stripe.Subscription) error {
-	err := o.EnsureCustomerLoaded(ctx, subscription.Customer.ID)
+func (o *StripeSync) handleSubscriptionUpdated(ctx context.Context, subscription *stripe.Subscription) error {
+	err := o.ensureCustomerLoaded(ctx, subscription.Customer.ID)
 	if err != nil {
 		return err
 	}
@@ -31,7 +31,7 @@ func (o *StripeSync) HandleSubscriptionUpdated(ctx context.Context, subscription
 			discountPromotionCode = utils.StringToNullString(subscription.Discount.PromotionCode.ID)
 		}
 
-		err := o.EnsureCouponLoaded(ctx, subscription.Discount.Coupon.ID)
+		err := o.ensureCouponLoaded(ctx, subscription.Discount.Coupon.ID)
 		if err != nil {
 			return err
 		}
@@ -77,7 +77,7 @@ func (o *StripeSync) HandleSubscriptionUpdated(ctx context.Context, subscription
 	}
 
 	for _, item := range subscription.Items.Data {
-		err := o.EnsurePriceLoaded(ctx, item.Price.ID)
+		err := o.ensurePriceLoaded(ctx, item.Price.ID)
 		if err != nil {
 			return err
 		}
@@ -101,8 +101,8 @@ func (o *StripeSync) HandleSubscriptionUpdated(ctx context.Context, subscription
 	return nil
 }
 
-func (o *StripeSync) HandleSubscriptionDiscountUpdated(c context.Context, discount *stripe.Discount) error {
-	err := o.EnsureCouponLoaded(c, discount.Coupon.ID)
+func (o *StripeSync) handleSubscriptionDiscountUpdated(c context.Context, discount *stripe.Discount) error {
+	err := o.ensureCouponLoaded(c, discount.Coupon.ID)
 	if err != nil {
 		return err
 	}

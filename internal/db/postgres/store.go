@@ -8,12 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/friendlycaptcha/friendly-stripe-sync/cfgmodel"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )
 
-func BuildConnectionDSN(cfg cfgmodel.Postgres) string {
+func BuildConnectionDSN(cfg Config) string {
 	password := cfg.Password
 
 	dsn := fmt.Sprintf("host=%s port=%d dbname=%s user=%s sslmode=%s",
@@ -25,12 +24,21 @@ func BuildConnectionDSN(cfg cfgmodel.Postgres) string {
 	return dsn
 }
 
-type PostgresStore struct {
+type Store struct {
 	db *sqlx.DB
 	Q  *Queries
 }
 
-func NewPostgresStore(cfg cfgmodel.Postgres) (*PostgresStore, error) {
+type Config struct {
+	Host     string
+	Port     int
+	User     string
+	Password string
+	DBName   string
+	SSLMode  string
+}
+
+func NewPostgresStore(cfg Config) (*Store, error) {
 	db, err := sqlx.Open("postgres", BuildConnectionDSN(cfg))
 	if err != nil {
 		return nil, fmt.Errorf("Failed to connect to postgres store: %w", err)
@@ -40,13 +48,13 @@ func NewPostgresStore(cfg cfgmodel.Postgres) (*PostgresStore, error) {
 	db.SetMaxOpenConns(80)
 	db.SetConnMaxLifetime(time.Hour * 1)
 
-	return &PostgresStore{
+	return &Store{
 		db: db,
 		Q:  New(db),
 	}, nil
 }
 
-func NewPostgresTestStore(cfg cfgmodel.Postgres) (*PostgresStore, func()) {
+func NewPostgresTestStore(cfg Config) (*Store, func()) {
 	// We first need to authenticate against the ordinary dbname
 	dbBootstrap, err := sqlx.Open("postgres", BuildConnectionDSN(cfg))
 	if err != nil {
@@ -89,7 +97,7 @@ func NewPostgresTestStore(cfg cfgmodel.Postgres) (*PostgresStore, func()) {
 
 	}
 
-	store := &PostgresStore{
+	store := &Store{
 		db: db,
 		Q:  New(db),
 	}
