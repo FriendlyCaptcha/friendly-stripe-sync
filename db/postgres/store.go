@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/friendlycaptcha/friendly-stripe-sync/internal/config/cfgmodel"
+	"github.com/friendlycaptcha/friendly-stripe-sync/cfgmodel"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )

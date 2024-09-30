@@ -1,5 +1,6 @@
 package cfgmodel
 
+// FriendlyStripeSync is the top-level config for the entire library.
 type FriendlyStripeSync struct {
 	Debug       bool `json:"debug"`
 	Purge       bool `json:"purge"`

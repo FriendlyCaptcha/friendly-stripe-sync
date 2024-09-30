@@ -1,8 +1,8 @@
 package ops
 
 import (
-	"github.com/friendlycaptcha/friendly-stripe-sync/internal/config/cfgmodel"
-	"github.com/friendlycaptcha/friendly-stripe-sync/internal/db/postgres"
+	"github.com/friendlycaptcha/friendly-stripe-sync/cfgmodel"
+	"github.com/friendlycaptcha/friendly-stripe-sync/db/postgres"
 	"github.com/stripe/stripe-go/v74/client"
 )
 

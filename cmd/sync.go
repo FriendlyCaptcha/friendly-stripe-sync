@@ -1,8 +1,8 @@
 package cmd
 
 import (
+	"github.com/friendlycaptcha/friendly-stripe-sync/entry/sync"
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/config"
-	"github.com/friendlycaptcha/friendly-stripe-sync/internal/entry/sync"
 	"github.com/spf13/cobra"
 )
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/friendlycaptcha/friendly-stripe-sync/internal/db/postgres"
+	"github.com/friendlycaptcha/friendly-stripe-sync/db/postgres"
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/utils"
 	"github.com/stripe/stripe-go/v74"
 )

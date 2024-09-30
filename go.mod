@@ -10,8 +10,8 @@ require (
 	github.com/rs/zerolog v1.28.0
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/viper v1.14.0
+	github.com/sqlc-dev/pqtype v0.3.0
 	github.com/stripe/stripe-go/v74 v74.3.0
-	github.com/tabbed/pqtype v0.1.1
 	golang.org/x/sync v0.1.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 )

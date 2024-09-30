@@ -1,8 +1,8 @@
 package migrate
 
 import (
+	"github.com/friendlycaptcha/friendly-stripe-sync/entry/migrate"
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/config"
-	"github.com/friendlycaptcha/friendly-stripe-sync/internal/entry/migrate"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )

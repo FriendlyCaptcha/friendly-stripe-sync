@@ -5,10 +5,10 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/friendlycaptcha/friendly-stripe-sync/internal/db/postgres"
+	"github.com/friendlycaptcha/friendly-stripe-sync/db/postgres"
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/utils"
+	"github.com/sqlc-dev/pqtype"
 	"github.com/stripe/stripe-go/v74"
-	"github.com/tabbed/pqtype"
 )
 
 func (o *Ops) HandleCustomerUpdated(c context.Context, customer *stripe.Customer) error {
