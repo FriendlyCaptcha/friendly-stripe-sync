@@ -9,7 +9,7 @@ import (
 	"github.com/stripe/stripe-go/v74"
 )
 
-func (o *Ops) HandleProductUpdated(c context.Context, product *stripe.Product) error {
+func (o *StripeSync) HandleProductUpdated(c context.Context, product *stripe.Product) error {
 	return o.db.Q.UpsertProduct(c, postgres.UpsertProductParams{
 		ID:                  product.ID,
 		Object:              product.Object,
@@ -29,11 +29,11 @@ func (o *Ops) HandleProductUpdated(c context.Context, product *stripe.Product) e
 	})
 }
 
-func (o *Ops) HandleProductDeleted(c context.Context, product *stripe.Product) error {
+func (o *StripeSync) HandleProductDeleted(c context.Context, product *stripe.Product) error {
 	return o.db.Q.DeleteProduct(c, product.ID)
 }
 
-func (o *Ops) EnsureProductLoaded(c context.Context, productId string) error {
+func (o *StripeSync) EnsureProductLoaded(c context.Context, productId string) error {
 	exists, err := o.db.Q.ProductExists(c, productId)
 	if err != nil {
 		return err

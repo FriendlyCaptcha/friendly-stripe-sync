@@ -9,7 +9,7 @@ import (
 	"github.com/stripe/stripe-go/v74"
 )
 
-func (o *Ops) HandleSubscriptionUpdated(ctx context.Context, subscription *stripe.Subscription) error {
+func (o *StripeSync) HandleSubscriptionUpdated(ctx context.Context, subscription *stripe.Subscription) error {
 	err := o.EnsureCustomerLoaded(ctx, subscription.Customer.ID)
 	if err != nil {
 		return err
@@ -101,7 +101,7 @@ func (o *Ops) HandleSubscriptionUpdated(ctx context.Context, subscription *strip
 	return nil
 }
 
-func (o *Ops) HandleSubscriptionDiscountUpdated(c context.Context, discount *stripe.Discount) error {
+func (o *StripeSync) HandleSubscriptionDiscountUpdated(c context.Context, discount *stripe.Discount) error {
 	err := o.EnsureCouponLoaded(c, discount.Coupon.ID)
 	if err != nil {
 		return err

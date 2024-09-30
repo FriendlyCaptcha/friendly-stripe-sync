@@ -9,7 +9,7 @@ import (
 	"github.com/stripe/stripe-go/v74"
 )
 
-func (o *Ops) HandleCouponUpdated(c context.Context, partialCoupon *stripe.Coupon) error {
+func (o *StripeSync) HandleCouponUpdated(c context.Context, partialCoupon *stripe.Coupon) error {
 	coup := partialCoupon
 	if partialCoupon.AppliesTo == nil {
 		params := &stripe.CouponParams{}
@@ -40,11 +40,11 @@ func (o *Ops) HandleCouponUpdated(c context.Context, partialCoupon *stripe.Coupo
 	})
 }
 
-func (o *Ops) HandleCouponDeleted(c context.Context, coupon *stripe.Coupon) error {
+func (o *StripeSync) HandleCouponDeleted(c context.Context, coupon *stripe.Coupon) error {
 	return o.db.Q.DeleteCoupon(c, coupon.ID)
 }
 
-func (o *Ops) EnsureCouponLoaded(c context.Context, couponID string) error {
+func (o *StripeSync) EnsureCouponLoaded(c context.Context, couponID string) error {
 	exists, err := o.db.Q.CouponExists(c, couponID)
 	if err != nil {
 		return err

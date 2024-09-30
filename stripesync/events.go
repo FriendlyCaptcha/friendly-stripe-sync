@@ -17,7 +17,7 @@ func unmarshalEventData[T interface{}](e *stripe.Event) (*T, error) {
 	return &data, err
 }
 
-func (o *Ops) HandleEvent(c context.Context, e *stripe.Event) error {
+func (o *StripeSync) HandleEvent(c context.Context, e *stripe.Event) error {
 	switch e.Type {
 	case "customer.created", "customer.updated", "customer.deleted":
 		customer, err := unmarshalEventData[stripe.Customer](e)

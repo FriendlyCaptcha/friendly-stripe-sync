@@ -9,7 +9,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-func (o *Ops) InitialLoad(ctx context.Context, purge bool) error {
+func (o *StripeSync) InitialLoad(ctx context.Context, purge bool) error {
 	if purge {
 		log.Info().Msgf("Deleting all existing data from database")
 
@@ -79,7 +79,7 @@ func (o *Ops) InitialLoad(ctx context.Context, purge bool) error {
 	return nil
 }
 
-func (o *Ops) loadCustomers(c context.Context) error {
+func (o *StripeSync) loadCustomers(c context.Context) error {
 	customers := o.stripe.Customers.List(&stripe.CustomerListParams{ListParams: stripe.ListParams{Limit: stripe.Int64(100)}})
 	count := 0
 	for customers.Next() {
@@ -95,7 +95,7 @@ func (o *Ops) loadCustomers(c context.Context) error {
 	return nil
 }
 
-func (o *Ops) loadProducts(c context.Context) error {
+func (o *StripeSync) loadProducts(c context.Context) error {
 	products := o.stripe.Products.List(&stripe.ProductListParams{ListParams: stripe.ListParams{Limit: stripe.Int64(100)}})
 	count := 0
 	for products.Next() {
@@ -111,7 +111,7 @@ func (o *Ops) loadProducts(c context.Context) error {
 	return nil
 }
 
-func (o *Ops) loadPrices(c context.Context) error {
+func (o *StripeSync) loadPrices(c context.Context) error {
 	prices := o.stripe.Prices.List(&stripe.PriceListParams{ListParams: stripe.ListParams{Limit: stripe.Int64(100)}})
 	count := 0
 	for prices.Next() {
@@ -127,7 +127,7 @@ func (o *Ops) loadPrices(c context.Context) error {
 	return nil
 }
 
-func (o *Ops) loadSubscriptions(c context.Context) error {
+func (o *StripeSync) loadSubscriptions(c context.Context) error {
 	subscriptions := o.stripe.Subscriptions.List(&stripe.SubscriptionListParams{ListParams: stripe.ListParams{Limit: stripe.Int64(100)}})
 	count := 0
 	for subscriptions.Next() {

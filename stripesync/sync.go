@@ -4,6 +4,7 @@ import (
 	"container/list"
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -11,7 +12,28 @@ import (
 	"github.com/stripe/stripe-go/v74"
 )
 
-func (o *Ops) SyncEvents(ctx context.Context) error {
+var ErrNoSyncState = fmt.Errorf("no sync state found")
+
+// SyncState contains information about previous sync operations.
+type SyncState struct {
+	// LastEvent is the timestamp of the last event that was synced in unix time.
+	LastEvent int64
+	// id is currently always equal to "current_state", and not to be used.
+	id string
+}
+
+// LastEventTime returns the time of the last event that was synced.
+func (s SyncState) LastEventTime() time.Time {
+	return time.Unix(s.LastEvent, 0)
+}
+
+// MayBeOutdated returns true if the sync state is older than 30 days.
+func (s SyncState) MayBeOutdated() bool {
+	return time.Since(s.LastEventTime()) > 30*24*time.Hour
+}
+
+// SyncEvents syncs all events from stripe (which are up to 30 days old) to the database.
+func (o *StripeSync) SyncEvents(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -41,23 +63,19 @@ func (o *Ops) SyncEvents(ctx context.Context) error {
 		},
 	}
 
-	latestSync, err := o.db.Q.GetCurrentSyncState(ctx)
-	if err == nil {
-		timeLimit := time.Now().AddDate(0, 0, -30).Unix()
-		if latestSync.LastEvent < timeLimit {
-			log.Warn().Msg("Last sync was more than 28 days ago, do an initial load to make sure there is no missing data")
+	syncState, err := o.SyncState(ctx)
+	if err != nil {
+		if !errors.Is(err, ErrNoSyncState) {
+			log.Warn().Msg("No sync state found, you should do an initial load first")
 		}
-
-		params.CreatedRange = &stripe.RangeQueryParams{
-			GreaterThan: latestSync.LastEvent,
-		}
-	} else if err == sql.ErrNoRows {
-		log.Warn().Msg("No sync state found, you should do an initial load first")
-	} else {
 		return fmt.Errorf("failed to get latest sync state: %w", err)
 	}
 
-	log.Info().Int64("last_sync", latestSync.LastEvent).Msgf("Starting to load events from stripe")
+	if syncState.MayBeOutdated() {
+		log.Warn().Msg("Last sync was more than 30 days ago, do an initial load to make sure there is no missing data")
+	}
+
+	log.Info().Int64("last_sync", syncState.LastEvent).Msgf("Starting to load events from stripe")
 
 	events := list.New()
 	i := o.stripe.Events.List(params)
@@ -89,4 +107,20 @@ func (o *Ops) SyncEvents(ctx context.Context) error {
 	log.Info().Msgf("Finished applying all events to database")
 
 	return nil
+}
+
+// SyncState returns the current sync state from the database.
+func (o *StripeSync) SyncState(ctx context.Context) (SyncState, error) {
+	ss, err := o.db.Q.GetCurrentSyncState(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return SyncState{}, ErrNoSyncState
+		}
+		return SyncState{}, fmt.Errorf("failed to get current sync state: %w", err)
+	}
+
+	return SyncState{
+		LastEvent: ss.LastEvent,
+		id:        ss.ID,
+	}, nil
 }

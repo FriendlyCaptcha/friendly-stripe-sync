@@ -10,7 +10,7 @@ import (
 	"github.com/stripe/stripe-go/v74"
 )
 
-func (o *Ops) HandlePriceUpdated(c context.Context, price *stripe.Price) error {
+func (o *StripeSync) HandlePriceUpdated(c context.Context, price *stripe.Price) error {
 	err := o.EnsureProductLoaded(c, price.Product.ID)
 	if err != nil {
 		return err
@@ -36,11 +36,11 @@ func (o *Ops) HandlePriceUpdated(c context.Context, price *stripe.Price) error {
 	})
 }
 
-func (o *Ops) HandlePriceDeleted(c context.Context, price *stripe.Price) error {
+func (o *StripeSync) HandlePriceDeleted(c context.Context, price *stripe.Price) error {
 	return o.db.Q.DeleteProduct(c, price.ID)
 }
 
-func (o *Ops) EnsurePriceLoaded(c context.Context, priceID string) error {
+func (o *StripeSync) EnsurePriceLoaded(c context.Context, priceID string) error {
 	exists, err := o.db.Q.PriceExists(c, priceID)
 	if err != nil {
 		return err

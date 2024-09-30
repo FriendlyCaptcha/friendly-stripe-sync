@@ -11,7 +11,7 @@ import (
 	"github.com/stripe/stripe-go/v74"
 )
 
-func (o *Ops) HandleCustomerUpdated(c context.Context, customer *stripe.Customer) error {
+func (o *StripeSync) HandleCustomerUpdated(c context.Context, customer *stripe.Customer) error {
 	address := utils.MarshalToNullRawMessage(customer.Address)
 	phone := utils.StringToNullString(customer.Phone)
 
@@ -49,7 +49,7 @@ func (o *Ops) HandleCustomerUpdated(c context.Context, customer *stripe.Customer
 	})
 }
 
-func (o *Ops) EnsureCustomerLoaded(ctx context.Context, customerID string) error {
+func (o *StripeSync) EnsureCustomerLoaded(ctx context.Context, customerID string) error {
 	exists, err := o.db.Q.CustomerExists(ctx, customerID)
 	if err != nil {
 		return err

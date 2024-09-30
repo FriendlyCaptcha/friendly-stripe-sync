@@ -9,7 +9,7 @@ import (
 	"github.com/friendlycaptcha/friendly-stripe-sync/cfgmodel"
 	"github.com/friendlycaptcha/friendly-stripe-sync/db/postgres"
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/telemetry"
-	"github.com/friendlycaptcha/friendly-stripe-sync/ops"
+	"github.com/friendlycaptcha/friendly-stripe-sync/stripesync"
 	"github.com/rs/zerolog/log"
 )
 
@@ -26,7 +26,7 @@ func Start(ctx context.Context, cfg cfgmodel.FriendlyStripeSync) error {
 		return fmt.Errorf("failed to create postgres store: %w", err)
 	}
 
-	stripesync := ops.New(db, cfg.StripeSync, cfg.Stripe.APIKey)
+	stripesync := stripesync.New(db, cfg.StripeSync, cfg.Stripe.APIKey)
 
 	_, err = db.Q.GetCurrentSyncState(ctx)
 	if err == sql.ErrNoRows {
