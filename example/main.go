@@ -32,7 +32,7 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Printf("The timestamp of the last synced is %s.\n", ss.LastEventTime())
+	fmt.Printf("The timestamp of the last synced Stripe event is %s.\n", ss.LastEventTime())
 	fmt.Println("Syncing events...")
 
 	err = stripesync.SyncEvents(ctx)
