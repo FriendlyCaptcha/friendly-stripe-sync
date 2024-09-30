@@ -2,6 +2,7 @@ package stripesync
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -94,6 +95,11 @@ func (o *StripeSync) loadCustomers(c context.Context) error {
 		}
 		count += 1
 	}
+	if err := customers.Err(); err != nil {
+		log.Error().Err(err).Msg("Failed to load customers")
+		return fmt.Errorf("failed to load customers: %w", err)
+	}
+
 	log.Debug().Int("count", count).Str("entity_type", "customer").Msg("Finished loading customers")
 	return nil
 }
@@ -110,6 +116,11 @@ func (o *StripeSync) loadProducts(c context.Context) error {
 		}
 		count += 1
 	}
+	if err := products.Err(); err != nil {
+		log.Error().Err(err).Msg("Failed to load products")
+		return fmt.Errorf("failed to load products: %w", err)
+	}
+
 	log.Debug().Int("count", count).Str("entity_type", "product").Msg("Finished loading products")
 	return nil
 }
@@ -126,6 +137,10 @@ func (o *StripeSync) loadPrices(c context.Context) error {
 		}
 		count += 1
 	}
+	if err := prices.Err(); err != nil {
+		log.Error().Err(err).Msg("Failed to load prices")
+		return fmt.Errorf("failed to load prices: %w", err)
+	}
 	log.Debug().Int("count", count).Str("entity_type", "price").Msg("Finished loading prices")
 	return nil
 }
@@ -141,6 +156,10 @@ func (o *StripeSync) loadSubscriptions(c context.Context) error {
 			return err
 		}
 		count += 1
+	}
+	if err := subscriptions.Err(); err != nil {
+		log.Error().Err(err).Msg("Failed to load subscriptions")
+		return fmt.Errorf("failed to load subscriptions: %w", err)
 	}
 	log.Debug().Int("count", count).Str("entity_type", "subscription").Msg("Finished loading subscriptions")
 	return nil
