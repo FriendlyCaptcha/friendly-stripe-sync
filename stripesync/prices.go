@@ -1,4 +1,4 @@
-package ops
+package stripesync
 
 import (
 	"context"
@@ -10,8 +10,8 @@ import (
 	"github.com/stripe/stripe-go/v74"
 )
 
-func (o *Ops) HandlePriceUpdated(c context.Context, price *stripe.Price) error {
-	err := o.EnsureProductLoaded(c, price.Product.ID)
+func (o *StripeSync) handlePriceUpdated(c context.Context, price *stripe.Price) error {
+	err := o.ensureProductLoaded(c, price.Product.ID)
 	if err != nil {
 		return err
 	}
@@ -36,11 +36,11 @@ func (o *Ops) HandlePriceUpdated(c context.Context, price *stripe.Price) error {
 	})
 }
 
-func (o *Ops) HandlePriceDeleted(c context.Context, price *stripe.Price) error {
+func (o *StripeSync) handlePriceDeleted(c context.Context, price *stripe.Price) error {
 	return o.db.Q.DeleteProduct(c, price.ID)
 }
 
-func (o *Ops) EnsurePriceLoaded(c context.Context, priceID string) error {
+func (o *StripeSync) ensurePriceLoaded(c context.Context, priceID string) error {
 	exists, err := o.db.Q.PriceExists(c, priceID)
 	if err != nil {
 		return err
@@ -50,7 +50,7 @@ func (o *Ops) EnsurePriceLoaded(c context.Context, priceID string) error {
 		if err != nil {
 			return err
 		}
-		err = o.HandlePriceUpdated(c, price)
+		err = o.handlePriceUpdated(c, price)
 		if err != nil {
 			return fmt.Errorf("failed to upsert price: %w", err)
 		}

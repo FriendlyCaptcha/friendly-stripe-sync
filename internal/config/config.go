@@ -8,7 +8,7 @@ import (
 	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/viper"
 
-	"github.com/friendlycaptcha/friendly-stripe-sync/internal/config/cfgmodel"
+	"github.com/friendlycaptcha/friendly-stripe-sync/internal/cfgmodel"
 )
 
 var CfgFile string

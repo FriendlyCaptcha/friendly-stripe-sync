@@ -2,14 +2,13 @@ package watch
 
 import (
 	"context"
-	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
-	"github.com/friendlycaptcha/friendly-stripe-sync/internal/config/cfgmodel"
-	"github.com/friendlycaptcha/friendly-stripe-sync/internal/db/postgres"
-	"github.com/friendlycaptcha/friendly-stripe-sync/internal/ops"
+	"github.com/friendlycaptcha/friendly-stripe-sync/internal/cfgmodel"
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/telemetry"
+	"github.com/friendlycaptcha/friendly-stripe-sync/stripesync"
 	"github.com/rs/zerolog/log"
 )
 
@@ -21,17 +20,15 @@ func Start(ctx context.Context, cfg cfgmodel.FriendlyStripeSync) error {
 
 	intervalSeconds := cfg.StripeSync.IntervalSeconds
 
-	db, err := postgres.NewPostgresStore(cfg.Postgres)
+	sync, err := stripesync.New(cfg.LibraryConfig())
 	if err != nil {
-		return fmt.Errorf("failed to create postgres store: %w", err)
+		return fmt.Errorf("failed to create stripe sync: %w", err)
 	}
 
-	stripesync := ops.New(db, cfg.StripeSync, cfg.Stripe.APIKey)
-
-	_, err = db.Q.GetCurrentSyncState(ctx)
-	if err == sql.ErrNoRows {
+	_, err = sync.GetCurrentSyncState(ctx)
+	if errors.Is(err, stripesync.ErrNoSyncState) {
 		log.Info().Msg("No sync state found, doing an initial load")
-		err := stripesync.InitialLoad(ctx, cfg.Purge)
+		err := sync.InitialLoad(ctx, cfg.Purge)
 		if err != nil {
 			return fmt.Errorf("failed to load initial data: %w", err)
 		}
@@ -48,7 +45,7 @@ func Start(ctx context.Context, cfg cfgmodel.FriendlyStripeSync) error {
 			ticker.Stop()
 			return nil
 		case <-ticker.C:
-			err := stripesync.SyncEvents(ctx)
+			err := sync.SyncEvents(ctx)
 			if err != nil {
 				log.Error().Err(err).Msg("Failed to sync events")
 			}

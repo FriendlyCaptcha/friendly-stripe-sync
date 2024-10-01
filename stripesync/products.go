@@ -1,4 +1,4 @@
-package ops
+package stripesync
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"github.com/stripe/stripe-go/v74"
 )
 
-func (o *Ops) HandleProductUpdated(c context.Context, product *stripe.Product) error {
+func (o *StripeSync) handleProductUpdated(c context.Context, product *stripe.Product) error {
 	return o.db.Q.UpsertProduct(c, postgres.UpsertProductParams{
 		ID:                  product.ID,
 		Object:              product.Object,
@@ -29,11 +29,11 @@ func (o *Ops) HandleProductUpdated(c context.Context, product *stripe.Product) e
 	})
 }
 
-func (o *Ops) HandleProductDeleted(c context.Context, product *stripe.Product) error {
+func (o *StripeSync) handleProductDeleted(c context.Context, product *stripe.Product) error {
 	return o.db.Q.DeleteProduct(c, product.ID)
 }
 
-func (o *Ops) EnsureProductLoaded(c context.Context, productId string) error {
+func (o *StripeSync) ensureProductLoaded(c context.Context, productId string) error {
 	exists, err := o.db.Q.ProductExists(c, productId)
 	if err != nil {
 		return err
@@ -43,7 +43,7 @@ func (o *Ops) EnsureProductLoaded(c context.Context, productId string) error {
 		if err != nil {
 			return err
 		}
-		err = o.HandleProductUpdated(c, product)
+		err = o.handleProductUpdated(c, product)
 		if err != nil {
 			return fmt.Errorf("failed to upsert product: %w", err)
 		}

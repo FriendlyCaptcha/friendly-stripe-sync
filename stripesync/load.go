@@ -1,7 +1,8 @@
-package ops
+package stripesync
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -9,7 +10,10 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-func (o *Ops) InitialLoad(ctx context.Context, purge bool) error {
+// InitialLoad loads all data from Stripe into the database. This is generally necessary if you have not synced
+// in the last 30 days, as Stripe only keeps events for 30 days.
+// If purge is true, it will delete all existing data from the database before loading.
+func (o *StripeSync) InitialLoad(ctx context.Context, purge bool) error {
 	if purge {
 		log.Info().Msgf("Deleting all existing data from database")
 
@@ -79,65 +83,83 @@ func (o *Ops) InitialLoad(ctx context.Context, purge bool) error {
 	return nil
 }
 
-func (o *Ops) loadCustomers(c context.Context) error {
+func (o *StripeSync) loadCustomers(c context.Context) error {
 	customers := o.stripe.Customers.List(&stripe.CustomerListParams{ListParams: stripe.ListParams{Limit: stripe.Int64(100)}})
 	count := 0
 	for customers.Next() {
 		cus := customers.Customer()
-		err := o.HandleCustomerUpdated(c, cus)
+		err := o.handleCustomerUpdated(c, cus)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to handle loaded customer")
 			return err
 		}
 		count += 1
 	}
+	if err := customers.Err(); err != nil {
+		log.Error().Err(err).Msg("Failed to load customers")
+		return fmt.Errorf("failed to load customers: %w", err)
+	}
+
 	log.Debug().Int("count", count).Str("entity_type", "customer").Msg("Finished loading customers")
 	return nil
 }
 
-func (o *Ops) loadProducts(c context.Context) error {
+func (o *StripeSync) loadProducts(c context.Context) error {
 	products := o.stripe.Products.List(&stripe.ProductListParams{ListParams: stripe.ListParams{Limit: stripe.Int64(100)}})
 	count := 0
 	for products.Next() {
 		p := products.Product()
-		err := o.HandleProductUpdated(c, p)
+		err := o.handleProductUpdated(c, p)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to handle loaded product")
 			return err
 		}
 		count += 1
 	}
+	if err := products.Err(); err != nil {
+		log.Error().Err(err).Msg("Failed to load products")
+		return fmt.Errorf("failed to load products: %w", err)
+	}
+
 	log.Debug().Int("count", count).Str("entity_type", "product").Msg("Finished loading products")
 	return nil
 }
 
-func (o *Ops) loadPrices(c context.Context) error {
+func (o *StripeSync) loadPrices(c context.Context) error {
 	prices := o.stripe.Prices.List(&stripe.PriceListParams{ListParams: stripe.ListParams{Limit: stripe.Int64(100)}})
 	count := 0
 	for prices.Next() {
 		p := prices.Price()
-		err := o.HandlePriceUpdated(c, p)
+		err := o.handlePriceUpdated(c, p)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to handle loaded price")
 			return err
 		}
 		count += 1
 	}
+	if err := prices.Err(); err != nil {
+		log.Error().Err(err).Msg("Failed to load prices")
+		return fmt.Errorf("failed to load prices: %w", err)
+	}
 	log.Debug().Int("count", count).Str("entity_type", "price").Msg("Finished loading prices")
 	return nil
 }
 
-func (o *Ops) loadSubscriptions(c context.Context) error {
+func (o *StripeSync) loadSubscriptions(c context.Context) error {
 	subscriptions := o.stripe.Subscriptions.List(&stripe.SubscriptionListParams{ListParams: stripe.ListParams{Limit: stripe.Int64(100)}})
 	count := 0
 	for subscriptions.Next() {
 		s := subscriptions.Subscription()
-		err := o.HandleSubscriptionUpdated(c, s)
+		err := o.handleSubscriptionUpdated(c, s)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to handle loaded subscription")
 			return err
 		}
 		count += 1
+	}
+	if err := subscriptions.Err(); err != nil {
+		log.Error().Err(err).Msg("Failed to load subscriptions")
+		return fmt.Errorf("failed to load subscriptions: %w", err)
 	}
 	log.Debug().Int("count", count).Str("entity_type", "subscription").Msg("Finished loading subscriptions")
 	return nil

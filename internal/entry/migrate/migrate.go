@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/friendlycaptcha/friendly-stripe-sync/internal/config/cfgmodel"
+	"github.com/friendlycaptcha/friendly-stripe-sync/internal/cfgmodel"
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/db/postgres"
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/store"
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/telemetry"
@@ -31,11 +31,11 @@ func Migrate(ctx context.Context, cfg cfgmodel.FriendlyStripeSync, storeName str
 
 	switch storeName {
 	case "postgres":
-		pg, err := postgres.NewPostgresStore(cfg.Postgres)
+		pg, err := postgres.NewPostgresStore(cfg.PostgresConfig())
 		if err != nil {
 			return fmt.Errorf("failed to create postgres store: %w", err)
 		}
-		pgMigrater, err := pg.GetMigrater(cfg.Postgres)
+		pgMigrater, err := pg.GetMigrater(cfg.PostgresConfig())
 		if err != nil {
 			return fmt.Errorf("failed to get migrater: %w", err)
 		}

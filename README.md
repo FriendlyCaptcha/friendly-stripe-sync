@@ -30,10 +30,7 @@ The data is updated using the following events:
 ## Installation
 
 ```shell
-# Go >= 1.17
 go install github.com/FriendlyCaptcha/friendly-stripe-sync@latest
-# Go < 1.17:
-go install github.com/FriendlyCaptcha/friendly-stripe-sync
 ```
 
 ## Usage
