@@ -76,6 +76,10 @@ func (o *StripeSync) SyncEvents(ctx context.Context) error {
 		log.Warn().Msg("Last sync was more than 30 days ago, do an initial load to make sure there is no missing data")
 	}
 
+	params.CreatedRange = &stripe.RangeQueryParams{
+		GreaterThan: syncState.LastEvent,
+	}
+
 	log.Info().Int64("last_sync", syncState.LastEvent).Msgf("Starting to load events from stripe")
 
 	events := list.New()
