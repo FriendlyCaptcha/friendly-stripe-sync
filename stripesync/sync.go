@@ -94,8 +94,12 @@ func (o *StripeSync) SyncEvents(ctx context.Context) error {
 		return fmt.Errorf("failed to list events: %w", err)
 	}
 
-	log.Info().Msgf("Finished loading %d events", events.Len())
-	log.Info().Msgf("Starting to apply events to database")
+	if events.Len() == 0 {
+		log.Info().Msg("Finished loading events, no new events found")
+		return nil
+	}
+
+	log.Info().Msgf("Finished loading %d events, starting to apply events to database", events.Len())
 
 	for event := events.Front(); event != nil; event = event.Next() {
 		e := event.Value.(*stripe.Event)
