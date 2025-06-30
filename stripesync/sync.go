@@ -102,7 +102,8 @@ func (o *StripeSync) SyncEvents(ctx context.Context) error {
 	log.Info().Msgf("Finished loading %d events, starting to apply events to database", events.Len())
 
 	// Skip `coupon.created` events that have a `coupon.deleted` event later on for the same ID.
-	// See https://github.com/FriendlyCaptcha/friendly-captcha/issues/2211
+	// Sometimes we create and quickly delete a coupon. The problem is that Stripe will return a 404
+	// if we try to retrieve information about a deleted coupon.
 	newCoupons := make(map[string]bool)
 	skipCoupons := make(map[string]bool)
 	for event := events.Front(); event != nil; event = event.Next() {
