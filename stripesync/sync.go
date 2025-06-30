@@ -101,8 +101,37 @@ func (o *StripeSync) SyncEvents(ctx context.Context) error {
 
 	log.Info().Msgf("Finished loading %d events, starting to apply events to database", events.Len())
 
+	// Skip `coupon.created` events that have a `coupon.deleted` event later on for the same ID.
+	// See https://github.com/FriendlyCaptcha/friendly-captcha/issues/2211
+	newCoupons := make(map[string]bool)
+	skipCoupons := make(map[string]bool)
 	for event := events.Front(); event != nil; event = event.Next() {
 		e := event.Value.(*stripe.Event)
+		if e.Type == "coupon.created" {
+			id, ok := e.Data.Object["id"].(string)
+			if ok {
+				newCoupons[id] = true
+			}
+		} else if e.Type == "coupon.deleted" {
+			id, ok := e.Data.Object["id"].(string)
+			if ok && newCoupons[id] {
+				skipCoupons[id] = true
+			}
+		}
+	}
+
+	for event := events.Front(); event != nil; event = event.Next() {
+		e := event.Value.(*stripe.Event)
+
+		if e.Type == "coupon.created" || e.Type == "coupon.deleted" {
+			id, ok := e.Data.Object["id"].(string)
+			if ok && skipCoupons[id] {
+				if e.Type == "coupon.created" {
+					log.Info().Str("coupon_id", id).Msg("Skipping coupon that was deleted")
+				}
+				continue
+			}
+		}
 
 		err := o.handleEvent(ctx, e)
 		if err != nil {
@@ -110,6 +139,7 @@ func (o *StripeSync) SyncEvents(ctx context.Context) error {
 			log.Error().Err(err).Msg("Failed to handle event")
 			return fmt.Errorf("failed to handle event: %w", err)
 		}
+
 		err = o.db.Q.SetSyncState(ctx, e.Created)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to update sync state")
