@@ -101,21 +101,21 @@ func (o *StripeSync) SyncEvents(ctx context.Context) error {
 
 	log.Info().Msgf("Finished loading %d events, starting to apply events to database", events.Len())
 
-	// Skip `coupon.created` events that have a `coupon.deleted` event later on for the same ID.
-	// Sometimes we create and quickly delete a coupon. The problem is that Stripe will return a 404
+	// Skip `coupon.created` and `coupon.updated` events that have a `coupon.deleted` event later on for the same ID.
+	// Sometimes we create/update and quickly delete a coupon. The problem is that Stripe will return a 404
 	// if we try to retrieve information about a deleted coupon.
-	newCoupons := make(map[string]bool)
+	newOrUpdatedCoupons := make(map[string]bool)
 	skipCoupons := make(map[string]bool)
 	for event := events.Front(); event != nil; event = event.Next() {
 		e := event.Value.(*stripe.Event)
-		if e.Type == "coupon.created" {
+		if e.Type == "coupon.created" || e.Type == "coupon.updated" {
 			id, ok := e.Data.Object["id"].(string)
 			if ok {
-				newCoupons[id] = true
+				newOrUpdatedCoupons[id] = true
 			}
 		} else if e.Type == "coupon.deleted" {
 			id, ok := e.Data.Object["id"].(string)
-			if ok && newCoupons[id] {
+			if ok && newOrUpdatedCoupons[id] {
 				skipCoupons[id] = true
 			}
 		}
@@ -124,12 +124,10 @@ func (o *StripeSync) SyncEvents(ctx context.Context) error {
 	for event := events.Front(); event != nil; event = event.Next() {
 		e := event.Value.(*stripe.Event)
 
-		if e.Type == "coupon.created" || e.Type == "coupon.deleted" {
+		if e.Type == "coupon.created" || e.Type == "coupon.updated" {
 			id, ok := e.Data.Object["id"].(string)
 			if ok && skipCoupons[id] {
-				if e.Type == "coupon.created" {
-					log.Info().Str("coupon_id", id).Msg("Skipping coupon that was deleted")
-				}
+				log.Info().Str("coupon_id", id).Msg("Skipping coupon that was deleted")
 				continue
 			}
 		}
