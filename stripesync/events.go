@@ -59,10 +59,15 @@ func (o *StripeSync) handleEvent(c context.Context, e *stripe.Event) error {
 		if err == nil {
 			return o.handleCouponDeleted(c, coupon)
 		}
-	case "customer.discount.updated", "customer.discount.deleted":
+	case "customer.discount.updated":
 		discount, err := unmarshalEventData[stripe.Discount](e)
 		if err == nil {
 			return o.handleSubscriptionDiscountUpdated(c, discount)
+		}
+	case "customer.discount.deleted":
+		discount, err := unmarshalEventData[stripe.Discount](e)
+		if err == nil {
+			return o.handleSubscriptionDiscountDeleted(c, discount)
 		}
 	}
 	return nil

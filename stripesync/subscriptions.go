@@ -106,7 +106,14 @@ func (o *StripeSync) handleSubscriptionDiscountUpdated(c context.Context, discou
 	if err != nil {
 		return err
 	}
+	return o.updateSubscriptionDiscount(c, discount)
+}
 
+func (o *StripeSync) handleSubscriptionDiscountDeleted(c context.Context, discount *stripe.Discount) error {
+	return o.updateSubscriptionDiscount(c, discount)
+}
+
+func (o *StripeSync) updateSubscriptionDiscount(c context.Context, discount *stripe.Discount) error {
 	var promotionCodeID sql.NullString
 	if discount.PromotionCode != nil {
 		promotionCodeID = sql.NullString{
