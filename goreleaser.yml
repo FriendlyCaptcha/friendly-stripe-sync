@@ -1,3 +1,4 @@
+version: 2
 before:
   hooks:
     - go generate ./...
@@ -25,4 +26,4 @@ archives:
       {{- .Arch}}
     format_overrides:
       - goos: windows
-        format: zip
+        formats: [ 'zip' ]
