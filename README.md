@@ -97,7 +97,7 @@ stripe:
 
 # Database configuration
 postgres:
-  host: "localhost"
+  host: "localhost" # can be a comma-separated list (eg, "10.0.0.1,10.0.0.2")
   port: 5432
   user: "postgres"
   password: ""

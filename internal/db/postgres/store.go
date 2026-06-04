@@ -1,27 +1,44 @@
 package postgres
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"math/rand"
 	"os"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )
 
-func BuildConnectionDSN(cfg Config) string {
-	password := cfg.Password
+const defaultTargetSessionAttrs = "read-write"
 
-	dsn := fmt.Sprintf("host=%s port=%d dbname=%s user=%s sslmode=%s",
+func BuildConnectionDSN(cfg Config) string {
+	dsn := fmt.Sprintf("host=%s port=%d dbname=%s user=%s sslmode=%s connect_timeout=4",
 		cfg.Host, cfg.Port, cfg.DBName, cfg.User, cfg.SSLMode)
 
-	if password != "" {
-		dsn += " password=" + password
+	if cfg.Password != "" {
+		dsn += " password=" + cfg.Password
 	}
+
+	dsn += " target_session_attrs=" + defaultTargetSessionAttrs
 	return dsn
+}
+
+// validateHostList accepts a single host or a comma-separated list with no whitespace (eg, "10.0.0.1,10.0.0.2").
+func validateHostList(host string) error {
+	if strings.ContainsFunc(host, unicode.IsSpace) {
+		return errors.New("must not contain whitespace; use a host or comma-separated host list")
+	}
+	for _, h := range strings.Split(host, ",") {
+		if h == "" {
+			return errors.New("must be a host or comma-separated host list")
+		}
+	}
+	return nil
 }
 
 type Store struct {
@@ -39,6 +56,9 @@ type Config struct {
 }
 
 func NewPostgresStore(cfg Config) (*Store, error) {
+	if err := validateHostList(cfg.Host); err != nil {
+		return nil, fmt.Errorf("invalid postgres host %q: %w", cfg.Host, err)
+	}
 	db, err := sqlx.Open("postgres", BuildConnectionDSN(cfg))
 	if err != nil {
 		return nil, fmt.Errorf("Failed to connect to postgres store: %w", err)
@@ -46,7 +66,7 @@ func NewPostgresStore(cfg Config) (*Store, error) {
 
 	db.SetMaxIdleConns(20)
 	db.SetMaxOpenConns(80)
-	db.SetConnMaxLifetime(time.Hour * 1)
+	db.SetConnMaxLifetime(time.Minute * 15)
 
 	return &Store{
 		db: db,

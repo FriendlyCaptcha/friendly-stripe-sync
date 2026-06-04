@@ -64,6 +64,9 @@ func (mig *PostgresStoreMigrater) SetLogger(logger migrate.Logger) {
 }
 
 func (pgs *Store) GetMigrater(cfg Config) (*PostgresStoreMigrater, error) {
+	if err := validateHostList(cfg.Host); err != nil {
+		return nil, fmt.Errorf("invalid postgres host %q: %w", cfg.Host, err)
+	}
 	d, err := iofs.New(migrationsFS, "migrations")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open Postgres migrations iofs: %w", err)

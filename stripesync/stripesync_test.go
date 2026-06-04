@@ -29,13 +29,12 @@ func TestSmoke(t *testing.T) {
 		},
 	})
 
-	if strings.Contains(err.Error(), "connect: connection refused") {
-		t.Skip("Postgres not running or configured, run `docker compose up`")
-	}
-
 	require.NoError(t, err)
 
 	err = syncer.MigrateDB(ctx)
+	if err != nil && strings.Contains(err.Error(), "connection refused") {
+		t.Skip("Postgres not running or configured, run `docker compose up`")
+	}
 	require.NoError(t, err)
 
 	ss, err := syncer.GetCurrentSyncState(ctx)
