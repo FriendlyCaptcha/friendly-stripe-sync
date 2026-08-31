@@ -25,15 +25,19 @@ func (o *StripeSync) handleSubscriptionUpdated(ctx context.Context, subscription
 		discountID = utils.StringToNullString(subscription.Discount.ID)
 		discountStart = utils.Int64ToNullInt64(subscription.Discount.Start)
 		discountEnd = utils.Int64ToNullInt64(subscription.Discount.End)
-		discountCoupon = utils.StringToNullString(subscription.Discount.Coupon.ID)
 		discountDeleted = sql.NullBool{Bool: subscription.Discount.Deleted, Valid: true}
 		if subscription.Discount.PromotionCode != nil {
 			discountPromotionCode = utils.StringToNullString(subscription.Discount.PromotionCode.ID)
 		}
 
-		err := o.ensureCouponLoaded(ctx, subscription.Discount.Coupon.ID)
+		loaded, err := o.ensureCouponLoaded(ctx, subscription.Discount.Coupon.ID)
 		if err != nil {
 			return err
+		}
+		// Only reference the coupon if we actually have it: it may have been deleted in Stripe
+		// already, in which case there is no row to point the foreign key at.
+		if loaded {
+			discountCoupon = utils.StringToNullString(subscription.Discount.Coupon.ID)
 		}
 	}
 
@@ -102,7 +106,7 @@ func (o *StripeSync) handleSubscriptionUpdated(ctx context.Context, subscription
 }
 
 func (o *StripeSync) handleSubscriptionDiscountUpdated(c context.Context, discount *stripe.Discount) error {
-	err := o.ensureCouponLoaded(c, discount.Coupon.ID)
+	loaded, err := o.ensureCouponLoaded(c, discount.Coupon.ID)
 	if err != nil {
 		return err
 	}
@@ -115,8 +119,10 @@ func (o *StripeSync) handleSubscriptionDiscountUpdated(c context.Context, discou
 		}
 	}
 
+	// Only reference the coupon if we actually have it: it may have been deleted in Stripe
+	// already, in which case there is no row to point the foreign key at.
 	var couponID sql.NullString
-	if discount.Coupon != nil {
+	if discount.Coupon != nil && loaded {
 		couponID = sql.NullString{
 			Valid:  true,
 			String: discount.Coupon.ID,
