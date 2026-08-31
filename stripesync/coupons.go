@@ -3,10 +3,12 @@ package stripesync
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/db/postgres"
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/utils"
+	"github.com/rs/zerolog/log"
 	"github.com/stripe/stripe-go/v74"
 )
 
@@ -45,18 +47,29 @@ func (o *StripeSync) handleCouponDeleted(c context.Context, coupon *stripe.Coupo
 	return o.db.Q.DeleteCoupon(c, coupon.ID)
 }
 
-func (o *StripeSync) ensureCouponLoaded(c context.Context, couponID string) error {
+// ensureCouponLoaded makes sure the coupon is in the database, fetching it from Stripe if needed.
+// It reports whether the coupon is present afterwards: coupons are deleted permanently in Stripe,
+// so one that is already gone can never be loaded and callers must not reference it.
+func (o *StripeSync) ensureCouponLoaded(c context.Context, couponID string) (bool, error) {
 	exists, err := o.db.Q.CouponExists(c, couponID)
 	if err != nil {
-		return err
-	}
-	if !exists {
-		// HandleCouponUpdated will fetch the coupon from Stripe because AppliesTo isn't set
-		err = o.handleCouponUpdated(c, &stripe.Coupon{ID: couponID})
-		if err != nil {
-			return fmt.Errorf("failed to upsert coupon: %w", err)
-		}
+		return false, err
 	}
 
-	return nil
+	if exists {
+		return true, nil
+	}
+
+	// HandleCouponUpdated will fetch the coupon from Stripe because AppliesTo isn't set
+	err = o.handleCouponUpdated(c, &stripe.Coupon{ID: couponID})
+	if err != nil {
+		var stripeErr *stripe.Error
+		if errors.As(err, &stripeErr) && stripeErr.Code == stripe.ErrorCodeResourceMissing {
+			log.Info().Str("coupon_id", couponID).Msg("Skipping coupon that no longer exists in Stripe")
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to upsert coupon: %w", err)
+	}
+
+	return true, nil
 }
