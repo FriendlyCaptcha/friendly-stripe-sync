@@ -122,7 +122,7 @@ func (o *StripeSync) handleSubscriptionDiscountUpdated(c context.Context, discou
 	// Only reference the coupon if we actually have it: it may have been deleted in Stripe
 	// already, in which case there is no row to point the foreign key at.
 	var couponID sql.NullString
-	if discount.Coupon != nil && loaded {
+	if loaded {
 		couponID = sql.NullString{
 			Valid:  true,
 			String: discount.Coupon.ID,
