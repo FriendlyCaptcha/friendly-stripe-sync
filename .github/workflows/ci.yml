@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Create job metadata
+        id: metadata
+        run: |
+          set -ex
+          echo "golangci_lint_version=$(head -n 1 .golangci.yml | tr -d '# ')" >> "$GITHUB_OUTPUT"
+      - name: Check gofmt
+        run: |
+          set -xeuo pipefail
+          gofmt_output="$(gofmt -l .)"
+          test -z "$(printf '%s\n' "$gofmt_output" | grep -Ev '\.gen\.go$')"
+      - name: Check dependencies
+        # Ensure that the go.mod reflects all used dependencies.
+        run: |
+          set -ex
+          go version
+          go mod tidy
+          test -z "$(git status --porcelain)"
+          go mod verify
+      - name: Run golangci-lint and report all issues
+        # This creates a report that includes all issues (not just new ones
+        # introduced by PR changes), but it doesn't fail the job.
+        run: |
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@${{ steps.metadata.outputs.golangci_lint_version }}
+          golangci-lint run --output.tab.path stdout --issues-exit-code=0 ./... | \
+            tee "golangci-lint-${{ github.run_id }}_${{ github.run_attempt }}.txt" | \
+            awk 'NF {if ($2 == "revive") print $2 ":" $3; else print $2}' | sort | uniq -c | sort -nr
+      - name: Upload golangci-lint report
+        uses: actions/upload-artifact@v4
+        with:
+          name: golangci-lint-${{ github.run_id }}_${{ github.run_attempt }}
+          retention-days: 30
+          path: golangci-lint-${{ github.run_id }}_${{ github.run_attempt }}.txt
+      - name: Run golangci-lint action
+        if: github.event_name == 'pull_request'
+        # This only checks new issues introduced by the PR changes, and may fail the job.
+        uses: golangci/golangci-lint-action@v9.2.0
+        with:
+          version: ${{ steps.metadata.outputs.golangci_lint_version }}
+          only-new-issues: true
+
+  build-and-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        credentials:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+        env:
+          POSTGRES_DB: friendlystripe
+          POSTGRES_PORT: 5432
+          POSTGRES_USER: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build
+        run: go build -v ./...
+      - name: Test with coverage
+        run: |
+          export GOMAXPROCS=4
+          go test -v -race -p 4 -timeout 600s -cover ./...
