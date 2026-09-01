@@ -22,6 +22,9 @@ type Config struct {
 	// ExcludedFields is a list of fields that should be excluded from the sync.
 	ExcludedFields []string
 
+	// DowngradeStripeError decides which Stripe SDK errors to log at warn instead of error.
+	DowngradeStripeError func(error) bool
+
 	Postgres PostgresConfig
 }
 
@@ -50,7 +53,7 @@ func (pc PostgresConfig) StoreConfig() postgres.Config {
 // New creates a new StripeSync handle.
 func New(cfg Config) (*StripeSync, error) {
 	stripeClient := &client.API{}
-	stripeClient.Init(cfg.StripeAPIKey, nil)
+	stripeClient.Init(cfg.StripeAPIKey, stripeBackends(cfg.DowngradeStripeError))
 
 	db, err := postgres.NewPostgresStore(cfg.Postgres.StoreConfig())
 	if err != nil {

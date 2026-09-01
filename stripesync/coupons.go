@@ -3,7 +3,6 @@ package stripesync
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 
 	"github.com/friendlycaptcha/friendly-stripe-sync/internal/db/postgres"
@@ -63,9 +62,8 @@ func (o *StripeSync) ensureCouponLoaded(c context.Context, couponID string) (boo
 	// HandleCouponUpdated will fetch the coupon from Stripe because AppliesTo isn't set
 	err = o.handleCouponUpdated(c, &stripe.Coupon{ID: couponID})
 	if err != nil {
-		var stripeErr *stripe.Error
-		if errors.As(err, &stripeErr) && stripeErr.Code == stripe.ErrorCodeResourceMissing {
-			log.Info().Str("coupon_id", couponID).Msg("Skipping coupon that no longer exists in Stripe")
+		if IsMissingResourceError(err) {
+			log.Info().Err(err).Str("coupon_id", couponID).Msg("Skipping coupon that no longer exists in Stripe")
 			return false, nil
 		}
 		return false, fmt.Errorf("failed to upsert coupon: %w", err)
