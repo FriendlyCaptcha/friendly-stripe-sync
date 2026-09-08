@@ -28,7 +28,7 @@ func writeConfig(t *testing.T, contents string) {
 	InitConfig()
 }
 
-// Keys containing an underscore only bind because we decode using the json tags,
+// Keys containing an underscore only bind because of the mapstructure tags,
 // mapstructure's field-name fallback does not match them.
 func TestGetStructUnderscoreKeysRoundTrip(t *testing.T) {
 	writeConfig(t, `
@@ -102,8 +102,8 @@ stripe_sync:
 }
 
 // The underscore-free spellings (stripe.apikey, stripesync.excludedfields, ...) are what
-// mapstructure's field-name fallback used to accept, and were the only keys that bound
-// before the json tags were honoured. They are deliberately no longer supported.
+// mapstructure's field-name fallback accepts, and were the only keys that bound before
+// the mapstructure tags were added. They are deliberately no longer supported.
 func TestGetStructLegacyKeysNoLongerBind(t *testing.T) {
 	writeConfig(t, `
 stripe:

@@ -121,9 +121,9 @@ func buildMigrationCommand(datastoreName string) *cobra.Command {
 	return r
 }
 
-// bindMigrate is a PreRun rather than a PersistentPreRun on the migrate root
-// because cobra only runs the closest PersistentPreRun, which would shadow the
-// root command's global flag binding.
+// bindMigrate loads the config before a migrate subcommand runs. It needs to be
+// PreRun, because refactoring it to PersistentPreRun would stop cobra running
+// the top-level bindFlags hook (i.e., --development and --debug flags).
 func bindMigrate(_ *cobra.Command, _ []string) {
 	config.InitConfig()
 }
