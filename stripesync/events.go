@@ -24,6 +24,16 @@ func (o *StripeSync) handleEvent(c context.Context, e *stripe.Event) error {
 		if err == nil {
 			return o.handleCustomerUpdated(c, customer)
 		}
+	case "customer.tax_id.created", "customer.tax_id.updated":
+		taxID, err := unmarshalEventData[stripe.TaxID](e)
+		if err == nil {
+			return o.handleTaxIDUpdated(c, taxID)
+		}
+	case "customer.tax_id.deleted":
+		taxID, err := unmarshalEventData[stripe.TaxID](e)
+		if err == nil {
+			return o.handleTaxIDDeleted(c, taxID)
+		}
 	case "product.created", "product.updated":
 		product, err := unmarshalEventData[stripe.Product](e)
 		if err == nil {

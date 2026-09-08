@@ -10,12 +10,15 @@ Load and periodically synchronize data from Stripe to a Postgres database.
 
 ### Supported Data Types
 
-friendly-stripe-sync currently supports products, prices, customers, subscriptions, subscription items, and coupons.  
+friendly-stripe-sync currently supports products, prices, customers, customer tax IDs, subscriptions, subscription items, and coupons.  
 The data is updated using the following events:
 
 - [x] customer.created
 - [x] customer.updated
 - [x] customer.deleted
+- [x] customer.tax_id.created
+- [x] customer.tax_id.updated
+- [x] customer.tax_id.deleted
 - [x] product.created
 - [x] product.updated
 - [x] product.deleted
@@ -62,6 +65,8 @@ To load the initial dataset (required if you have data older than 30 days in you
 # --purge will delete all existing data before loading the data from Stripe
 friendly-stripe-sync load [--purge]
 ```
+
+Customer tax IDs are loaded together with their customer, so rerunning `load` backfills them.
 
 ### Synchronize once
 
@@ -110,6 +115,7 @@ stripe_sync:
     # Currently only the following fields can be excluded:
     - "customer.address"
     - "customer.phone"
+    - "customer.tax_ids"
 ```
 
 You can also set config fields using environment variables. The app will look for environment variables starting with `FSS_`. For example `FSS_POSTGRES__PASSWORD=1234567890` will overwrite the `postgres.password` field in the YAML config.
