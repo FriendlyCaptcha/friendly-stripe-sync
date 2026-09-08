@@ -24,6 +24,17 @@ func (q *Queries) CustomerExists(ctx context.Context, id string) (bool, error) {
 	return exists, err
 }
 
+const customerIsDeleted = `-- name: CustomerIsDeleted :one
+SELECT deleted FROM "stripe"."customers" WHERE id = $1
+`
+
+func (q *Queries) CustomerIsDeleted(ctx context.Context, id string) (bool, error) {
+	row := q.db.QueryRowContext(ctx, customerIsDeleted, id)
+	var deleted bool
+	err := row.Scan(&deleted)
+	return deleted, err
+}
+
 const deleteAllCustomers = `-- name: DeleteAllCustomers :exec
 DELETE FROM "stripe"."customers"
 `

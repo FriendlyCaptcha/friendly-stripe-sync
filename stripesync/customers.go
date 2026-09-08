@@ -59,7 +59,7 @@ func (o *StripeSync) handleCustomerUpdated(c context.Context, customer *stripe.C
 	// Customer events carry no tax IDs, so a nil list means "unknown" rather than "none".
 	// The customer.tax_id.* events keep the stored ones up to date instead.
 	if customer.TaxIDs != nil {
-		return o.syncCustomerTaxIDs(c, customer.ID, customer.TaxIDs.Data)
+		return o.syncCustomerTaxIDs(c, customer.ID, customer.TaxIDs)
 	}
 
 	return nil
