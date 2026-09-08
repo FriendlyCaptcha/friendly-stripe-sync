@@ -24,7 +24,7 @@ func (o *StripeSync) handleCustomerUpdated(c context.Context, customer *stripe.C
 		}
 	}
 
-	return o.db.Q.UpsertCustomer(c, postgres.UpsertCustomerParams{
+	err := o.db.Q.UpsertCustomer(c, postgres.UpsertCustomerParams{
 		ID:                  customer.ID,
 		Object:              customer.Object,
 		Address:             address,
@@ -47,6 +47,22 @@ func (o *StripeSync) handleCustomerUpdated(c context.Context, customer *stripe.C
 		TaxExempt:           string(customer.TaxExempt),
 		Deleted:             customer.Deleted,
 	})
+	if err != nil {
+		return err
+	}
+
+	// Stripe drops the tax IDs along with the customer, but we keep the customer row itself.
+	if customer.Deleted {
+		return o.db.Q.DeleteCustomerTaxIDsOfCustomer(c, customer.ID)
+	}
+
+	// Customer events carry no tax IDs, so a nil list means "unknown" rather than "none".
+	// The customer.tax_id.* events keep the stored ones up to date instead.
+	if customer.TaxIDs != nil {
+		return o.syncCustomerTaxIDs(c, customer.ID, customer.TaxIDs.Data)
+	}
+
+	return nil
 }
 
 func (o *StripeSync) ensureCustomerLoaded(ctx context.Context, customerID string) error {
@@ -55,7 +71,9 @@ func (o *StripeSync) ensureCustomerLoaded(ctx context.Context, customerID string
 		return err
 	}
 	if !exists {
-		customer, err := o.stripe.Customers.Get(customerID, nil)
+		params := &stripe.CustomerParams{}
+		params.AddExpand("tax_ids")
+		customer, err := o.stripe.Customers.Get(customerID, params)
 		if err != nil {
 			return err
 		}

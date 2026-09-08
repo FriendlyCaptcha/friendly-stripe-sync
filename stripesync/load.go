@@ -23,6 +23,12 @@ func (o *StripeSync) InitialLoad(ctx context.Context, purge bool) error {
 			return err
 		}
 
+		err = o.db.Q.DeleteAllCustomerTaxIDs(ctx)
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to delete all customer tax ids")
+			return err
+		}
+
 		err = o.db.Q.DeleteAllCustomers(ctx)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to delete all customers")
@@ -84,7 +90,11 @@ func (o *StripeSync) InitialLoad(ctx context.Context, purge bool) error {
 }
 
 func (o *StripeSync) loadCustomers(c context.Context) error {
-	customers := o.stripe.Customers.List(&stripe.CustomerListParams{ListParams: stripe.ListParams{Limit: stripe.Int64(100)}})
+	params := &stripe.CustomerListParams{ListParams: stripe.ListParams{Limit: stripe.Int64(100)}}
+	// Stripe expands at most 10 tax IDs, far more than a customer realistically has.
+	params.AddExpand("data.tax_ids")
+
+	customers := o.stripe.Customers.List(params)
 	count := 0
 	for customers.Next() {
 		cus := customers.Customer()
