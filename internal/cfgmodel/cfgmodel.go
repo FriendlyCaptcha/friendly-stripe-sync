@@ -7,40 +7,40 @@ import (
 
 // FriendlyStripeSync is the top-level config for the CLI tool.
 type FriendlyStripeSync struct {
-	Debug       bool `json:"debug"`
-	Purge       bool `json:"purge"`
-	Development bool `json:"development"`
+	Debug       bool `mapstructure:"debug" json:"debug"`
+	Purge       bool `mapstructure:"purge" json:"purge"`
+	Development bool `mapstructure:"development" json:"development"`
 
-	Stripe     Stripe     `json:"stripe"`
-	Postgres   Postgres   `json:"postgres"`
-	StripeSync StripeSync `json:"stripe_sync"`
+	Stripe     Stripe     `mapstructure:"stripe" json:"stripe"`
+	Postgres   Postgres   `mapstructure:"postgres" json:"postgres"`
+	StripeSync StripeSync `mapstructure:"stripe_sync" json:"stripe_sync"`
 
-	Logging Logging `json:"logging"`
+	Logging Logging `mapstructure:"logging" json:"logging"`
 }
 
 type Stripe struct {
-	APIKey string `json:"api_key"`
+	APIKey string `mapstructure:"api_key" json:"api_key"`
 }
 
 type Postgres struct {
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	User     string `json:"user"`
-	Password string `json:"password"`
-	DBName   string `json:"dbname"`
-	SSLMode  string `json:"sslmode"`
+	Host     string `mapstructure:"host" json:"host"`
+	Port     int    `mapstructure:"port" json:"port"`
+	User     string `mapstructure:"user" json:"user"`
+	Password string `mapstructure:"password" json:"password"`
+	DBName   string `mapstructure:"dbname" json:"dbname"`
+	SSLMode  string `mapstructure:"sslmode" json:"sslmode"`
 }
 
 type StripeSync struct {
-	IntervalSeconds int      `json:"interval_seconds"`
-	ExcludedFields  []string `json:"excluded_fields"`
+	IntervalSeconds int      `mapstructure:"interval_seconds" json:"interval_seconds"`
+	ExcludedFields  []string `mapstructure:"excluded_fields" json:"excluded_fields"`
 }
 
 type Logging struct {
-	Filename   string `json:"filename"`
-	MaxSize    int    `json:"max_size"`
-	MaxAge     int    `json:"max_age"`
-	MaxBackups int    `json:"max_backups"`
+	Filename   string `mapstructure:"filename" json:"filename"`
+	MaxSize    int    `mapstructure:"max_size" json:"max_size"`
+	MaxAge     int    `mapstructure:"max_age" json:"max_age"`
+	MaxBackups int    `mapstructure:"max_backups" json:"max_backups"`
 }
 
 // LibraryConfig returns the config as the stripesync library wants it.
