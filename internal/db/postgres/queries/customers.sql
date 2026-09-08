@@ -34,5 +34,6 @@ DELETE FROM "stripe"."customers";
 
 -- name: CustomerExists :one
 SELECT EXISTS (SELECT 1 FROM "stripe"."customers" WHERE id = $1);
+
 -- name: CustomerIsDeleted :one
 SELECT deleted FROM "stripe"."customers" WHERE id = $1;
