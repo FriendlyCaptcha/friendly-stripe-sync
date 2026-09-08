@@ -45,6 +45,7 @@ func buildMigrationCommand(datastoreName string) *cobra.Command {
 			cfg := config.GetStruct()
 			return migrate.Migrate(cmd.Context(), cfg, datastoreName, "up", migrate.MigrateOpts{})
 		},
+		PreRun: bindMigrate,
 	}
 
 	down := &cobra.Command{
@@ -54,6 +55,7 @@ func buildMigrationCommand(datastoreName string) *cobra.Command {
 			cfg := config.GetStruct()
 			return migrate.Migrate(cmd.Context(), cfg, datastoreName, "down", migrate.MigrateOpts{})
 		},
+		PreRun: bindMigrate,
 	}
 	down.Flags().Bool("danger", false, "Pass --danger to acknowledge this is potentially dangerous.")
 	down.MarkFlagRequired("danger")
@@ -65,6 +67,7 @@ func buildMigrationCommand(datastoreName string) *cobra.Command {
 			cfg := config.GetStruct()
 			return migrate.Migrate(cmd.Context(), cfg, datastoreName, "version", migrate.MigrateOpts{})
 		},
+		PreRun: bindMigrate,
 	}
 
 	list := &cobra.Command{
@@ -74,6 +77,7 @@ func buildMigrationCommand(datastoreName string) *cobra.Command {
 			cfg := config.GetStruct()
 			return migrate.Migrate(cmd.Context(), cfg, datastoreName, "list", migrate.MigrateOpts{})
 		},
+		PreRun: bindMigrate,
 	}
 
 	force := &cobra.Command{
@@ -85,6 +89,7 @@ func buildMigrationCommand(datastoreName string) *cobra.Command {
 				TargetVersion: getVersionFlagValue(cmd),
 			})
 		},
+		PreRun: bindMigrate,
 	}
 	force.Flags().Int("version", 9999, "Version to set the state to")
 	force.MarkFlagRequired("version")
@@ -100,6 +105,7 @@ func buildMigrationCommand(datastoreName string) *cobra.Command {
 				TargetVersion: getVersionFlagValue(cmd),
 			})
 		},
+		PreRun: bindMigrate,
 	}
 	to.Flags().Int("version", 9999, "Version to migrate to")
 	to.MarkFlagRequired("version")
@@ -113,4 +119,11 @@ func buildMigrationCommand(datastoreName string) *cobra.Command {
 	r.AddCommand(force)
 	r.AddCommand(to)
 	return r
+}
+
+// bindMigrate is a PreRun rather than a PersistentPreRun on the migrate root
+// because cobra only runs the closest PersistentPreRun, which would shadow the
+// root command's global flag binding.
+func bindMigrate(_ *cobra.Command, _ []string) {
+	config.InitConfig()
 }
