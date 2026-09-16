@@ -17,14 +17,13 @@ import (
 	"github.com/stripe/stripe-go/v74/client"
 )
 
-// stripeDocumentedTypesLimit is the cap the Stripe API documents on the event list `types`
-// filter: "An array of up to 20 strings containing specific event names." The tests assert
-// against this rather than against maxEventTypesPerRequest so the two cannot drift apart.
+// stripeDocumentedTypesLimit is what the Stripe API documents: "An array of up to 20 strings
+// containing specific event names." Asserted instead of maxEventTypesPerRequest so raising our
+// own constant past it fails here.
 const stripeDocumentedTypesLimit = 20
 
-// TestEventTypeChunksCoverEveryType is what keeps chunking honest. The per-chunk size is
-// guaranteed by slices.Chunk, so the thing worth asserting is that splitting the filter neither
-// drops a type nor reorders one.
+// TestEventTypeChunksCoverEveryType checks that splitting the filter drops no type and reorders
+// none. Chunk size is guaranteed by slices.Chunk, so asserting it here would prove nothing.
 func TestEventTypeChunksCoverEveryType(t *testing.T) {
 	var covered []string
 	chunks := 0
@@ -38,8 +37,8 @@ func TestEventTypeChunksCoverEveryType(t *testing.T) {
 	assert.Equal(t, (len(syncedEventTypes)+maxEventTypesPerRequest-1)/maxEventTypesPerRequest, chunks)
 }
 
-// TestSyncedEventTypesAreHandled keeps the filter and the dispatch in step. A type we ask Stripe
-// for but never act on costs a request slot and misleads the next person to count them.
+// TestSyncedEventTypesAreHandled keeps the filter and the dispatch in step: a type we request but
+// never act on wastes a slot in a filter already at its limit.
 func TestSyncedEventTypesAreHandled(t *testing.T) {
 	source, err := os.ReadFile("events.go")
 	require.NoError(t, err)
@@ -50,9 +49,8 @@ func TestSyncedEventTypesAreHandled(t *testing.T) {
 	}
 }
 
-// TestSortEventsChronologically covers the ordering the merged chunks depend on: events arrive
-// newest first and interleaved across requests, but the sync state only moves forward if they
-// are applied oldest first.
+// TestSortEventsChronologically covers the ordering the merge depends on: events arrive newest
+// first across requests, but the sync state only moves forward if applied oldest first.
 func TestSortEventsChronologically(t *testing.T) {
 	events := []*stripe.Event{
 		{ID: "evt_d", Created: 300},
@@ -71,13 +69,12 @@ func TestSortEventsChronologically(t *testing.T) {
 		got = append(got, e.ID)
 	}
 
-	// evt_a before evt_b: same second, so the ID breaks the tie deterministically.
+	// evt_a before evt_b: same second, ID breaks the tie.
 	assert.Equal(t, []string{"evt_a", "evt_b", "evt_c", "evt_d"}, got)
 }
 
-// TestListEventsSinceChunksRequests drives listEventsSince against a fake Stripe and asserts
-// what the 400 from v0.4.0 was really about: no single request may carry more than
-// maxEventTypesPerRequest types, and between them the requests must still ask for all of them.
+// TestListEventsSinceChunksRequests drives listEventsSince against a fake Stripe: no request may
+// exceed the type limit, and together they must still ask for every type.
 func TestListEventsSinceChunksRequests(t *testing.T) {
 	var mu sync.Mutex
 	var requested [][]string
@@ -98,8 +95,7 @@ func TestListEventsSinceChunksRequests(t *testing.T) {
 		n := len(requested)
 		mu.Unlock()
 
-		// Two events per request, newest first, so the merged result is only in order if
-		// listEventsSince sorts it.
+		// Newest first per request, so the merged result is only ordered if listEventsSince sorts.
 		w.Header().Set("Content-Type", "application/json")
 		_, err := fmt.Fprintf(w, `{"object":"list","has_more":false,"url":"/v1/events","data":[
 			{"id":"evt_%d_late","object":"event","created":%d,"type":"customer.created","data":{"object":{}}},
@@ -128,8 +124,7 @@ func TestListEventsSinceChunksRequests(t *testing.T) {
 
 	var all []string
 	for _, types := range requested {
-		// Deliberately the documented API limit rather than maxEventTypesPerRequest, so that
-		// raising our own constant past what Stripe accepts fails here instead of in production.
+		// The documented limit, not our constant, so the two cannot drift apart.
 		assert.LessOrEqual(t, len(types), stripeDocumentedTypesLimit,
 			"Stripe rejects a request carrying more than %d types with a 400", stripeDocumentedTypesLimit)
 		assert.NotEmpty(t, types)
@@ -141,7 +136,7 @@ func TestListEventsSinceChunksRequests(t *testing.T) {
 	sort.Strings(all)
 	assert.Equal(t, want, all, "the chunked requests must still ask for every synced type")
 
-	// Four events over two requests, interleaved in time, returned oldest first.
+	// Four events across two requests, interleaved in time, returned oldest first.
 	require.Len(t, events, 4)
 	var last int64
 	for _, e := range events {

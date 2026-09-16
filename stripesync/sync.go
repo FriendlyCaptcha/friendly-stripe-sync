@@ -34,12 +34,12 @@ func (s SyncState) MayBeOutdated() bool {
 	return time.Since(s.LastEventTime()) > 30*24*time.Hour
 }
 
-// maxEventTypesPerRequest is Stripe's cap on the `types` filter of the event list endpoint.
-// Exceeding it fails the whole request with a 400, so syncedEventTypes is requested in chunks.
+// maxEventTypesPerRequest is Stripe's cap on the `types` filter. Exceeding it fails the request
+// with a 400, so syncedEventTypes is requested in chunks.
 const maxEventTypesPerRequest = 20
 
-// syncedEventTypes are the events that change something we mirror. Every entry needs a
-// matching arm in handleEvent; anything else is dead weight in the filter.
+// syncedEventTypes are the events that change something we mirror. Every entry needs an arm in
+// handleEvent.
 var syncedEventTypes = []string{
 	"customer.created",
 	"customer.updated",
@@ -143,10 +143,8 @@ func (o *StripeSync) SyncEvents(ctx context.Context) error {
 
 // listEventsSince returns every event of a synced type created after since, oldest first.
 //
-// The type list is requested in chunks because Stripe rejects more than maxEventTypesPerRequest
-// of them in one call. Chunking is safe to do blind: the merged events are sorted before any of
-// them is applied, and a handler that reaches an entity an earlier chunk has not loaded yet
-// fetches it from Stripe itself.
+// Chunk boundaries are harmless: the merged events are sorted before any is applied, and a
+// handler reaching an entity another chunk has not loaded fetches it from Stripe itself.
 func (o *StripeSync) listEventsSince(since int64) ([]*stripe.Event, error) {
 	var events []*stripe.Event
 
@@ -169,10 +167,9 @@ func (o *StripeSync) listEventsSince(since int64) ([]*stripe.Event, error) {
 	return events, nil
 }
 
-// sortEventsChronologically orders events oldest first. Stripe returns each chunk newest first,
-// and the sync state advances to the created time of every event as it is applied, so the
-// watermark only moves forward if the merged chunks are applied in this order. Events sharing a
-// created second are ordered by ID so a given batch always applies the same way.
+// sortEventsChronologically orders events oldest first. The sync state advances to each event's
+// created time as it is applied, so it only moves forward in this order. The ID breaks ties
+// within a second so a batch always applies the same way.
 func sortEventsChronologically(events []*stripe.Event) {
 	slices.SortStableFunc(events, func(a, b *stripe.Event) int {
 		if c := cmp.Compare(a.Created, b.Created); c != 0 {
