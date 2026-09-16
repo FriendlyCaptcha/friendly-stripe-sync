@@ -1,11 +1,12 @@
 package stripesync
 
 import (
-	"container/list"
+	"cmp"
 	"context"
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -33,39 +34,40 @@ func (s SyncState) MayBeOutdated() bool {
 	return time.Since(s.LastEventTime()) > 30*24*time.Hour
 }
 
+// maxEventTypesPerRequest is Stripe's cap on the `types` filter of the event list endpoint.
+// Exceeding it fails the whole request with a 400, so syncedEventTypes is requested in chunks.
+const maxEventTypesPerRequest = 20
+
+// syncedEventTypes are the events that change something we mirror. Every entry needs a
+// matching arm in handleEvent; anything else is dead weight in the filter.
+var syncedEventTypes = []string{
+	"customer.created",
+	"customer.updated",
+	"customer.deleted",
+	"customer.tax_id.created",
+	"customer.tax_id.updated",
+	"customer.tax_id.deleted",
+	"product.created",
+	"product.updated",
+	"product.deleted",
+	"price.created",
+	"price.updated",
+	"price.deleted",
+	"customer.subscription.created",
+	"customer.subscription.updated",
+	"customer.subscription.paused",
+	"customer.subscription.deleted",
+	"coupon.created",
+	"coupon.updated",
+	"coupon.deleted",
+	"customer.discount.updated",
+	"customer.discount.deleted",
+}
+
 // SyncEvents syncs all events from stripe (which are up to 30 days old) to the database.
 func (o *StripeSync) SyncEvents(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-
-	params := &stripe.EventListParams{
-		ListParams: stripe.ListParams{
-			Limit: stripe.Int64(100),
-		},
-		Types: []*string{
-			stripe.String("customer.created"),
-			stripe.String("customer.updated"),
-			stripe.String("customer.deleted"),
-			stripe.String("customer.tax_id.created"),
-			stripe.String("customer.tax_id.updated"),
-			stripe.String("customer.tax_id.deleted"),
-			stripe.String("product.created"),
-			stripe.String("product.updated"),
-			stripe.String("product.deleted"),
-			stripe.String("price.created"),
-			stripe.String("price.updated"),
-			stripe.String("price.deleted"),
-			stripe.String("customer.subscription.created"),
-			stripe.String("customer.subscription.updated"),
-			stripe.String("customer.subscription.paused"),
-			stripe.String("customer.subscription.deleted"),
-			stripe.String("coupon.created"),
-			stripe.String("coupon.updated"),
-			stripe.String("coupon.deleted"),
-			stripe.String("customer.discount.updated"),
-			stripe.String("customer.discount.deleted"),
-		},
-	}
 
 	syncState, err := o.GetCurrentSyncState(ctx)
 	if err != nil {
@@ -79,38 +81,26 @@ func (o *StripeSync) SyncEvents(ctx context.Context) error {
 		log.Warn().Msg("Last sync was more than 30 days ago, do an initial load to make sure there is no missing data")
 	}
 
-	params.CreatedRange = &stripe.RangeQueryParams{
-		GreaterThan: syncState.LastEvent,
-	}
-
 	log.Info().Int64("last_sync", syncState.LastEvent).Msgf("Starting to load events from stripe")
 
-	events := list.New()
-	i := o.stripe.Events.List(params)
-	for i.Next() {
-		e := i.Event()
-
-		// we reverse the list because stripe gives us the events in reverse chronological order
-		events.PushFront(e)
-	}
-	if err := i.Err(); err != nil {
-		return fmt.Errorf("failed to list events: %w", err)
+	events, err := o.listEventsSince(syncState.LastEvent)
+	if err != nil {
+		return err
 	}
 
-	if events.Len() == 0 {
+	if len(events) == 0 {
 		log.Info().Msg("Finished loading events, no new events found")
 		return nil
 	}
 
-	log.Info().Msgf("Finished loading %d events, starting to apply events to database", events.Len())
+	log.Info().Msgf("Finished loading %d events, starting to apply events to database", len(events))
 
 	// Skip `coupon.created` and `coupon.updated` events that have a `coupon.deleted` event later on for the same ID.
 	// Sometimes we create/update and quickly delete a coupon. The problem is that Stripe will return a 404
 	// if we try to retrieve information about a deleted coupon.
 	newOrUpdatedCoupons := make(map[string]bool)
 	skipCoupons := make(map[string]bool)
-	for event := events.Front(); event != nil; event = event.Next() {
-		e := event.Value.(*stripe.Event)
+	for _, e := range events {
 		if e.Type == "coupon.created" || e.Type == "coupon.updated" {
 			id, ok := e.Data.Object["id"].(string)
 			if ok {
@@ -124,9 +114,7 @@ func (o *StripeSync) SyncEvents(ctx context.Context) error {
 		}
 	}
 
-	for event := events.Front(); event != nil; event = event.Next() {
-		e := event.Value.(*stripe.Event)
-
+	for _, e := range events {
 		if e.Type == "coupon.created" || e.Type == "coupon.updated" {
 			id, ok := e.Data.Object["id"].(string)
 			if ok && skipCoupons[id] {
@@ -151,6 +139,47 @@ func (o *StripeSync) SyncEvents(ctx context.Context) error {
 	log.Info().Msgf("Finished applying all events to database")
 
 	return nil
+}
+
+// listEventsSince returns every event of a synced type created after since, oldest first.
+//
+// The type list is requested in chunks because Stripe rejects more than maxEventTypesPerRequest
+// of them in one call. Chunking is safe to do blind: the merged events are sorted before any of
+// them is applied, and a handler that reaches an entity an earlier chunk has not loaded yet
+// fetches it from Stripe itself.
+func (o *StripeSync) listEventsSince(since int64) ([]*stripe.Event, error) {
+	var events []*stripe.Event
+
+	for chunk := range slices.Chunk(syncedEventTypes, maxEventTypesPerRequest) {
+		i := o.stripe.Events.List(&stripe.EventListParams{
+			ListParams:   stripe.ListParams{Limit: stripe.Int64(100)},
+			CreatedRange: &stripe.RangeQueryParams{GreaterThan: since},
+			Types:        stripe.StringSlice(chunk),
+		})
+		for i.Next() {
+			events = append(events, i.Event())
+		}
+		if err := i.Err(); err != nil {
+			return nil, fmt.Errorf("failed to list events: %w", err)
+		}
+	}
+
+	sortEventsChronologically(events)
+
+	return events, nil
+}
+
+// sortEventsChronologically orders events oldest first. Stripe returns each chunk newest first,
+// and the sync state advances to the created time of every event as it is applied, so the
+// watermark only moves forward if the merged chunks are applied in this order. Events sharing a
+// created second are ordered by ID so a given batch always applies the same way.
+func sortEventsChronologically(events []*stripe.Event) {
+	slices.SortStableFunc(events, func(a, b *stripe.Event) int {
+		if c := cmp.Compare(a.Created, b.Created); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.ID, b.ID)
+	})
 }
 
 // GetCurrentSyncState returns the current sync state from the database.
